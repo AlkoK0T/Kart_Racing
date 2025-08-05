@@ -1,0 +1,317 @@
+<!-- results.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты заездов | Karting PRO</title>
+    <style>
+        :root {
+            --blood-red: #ff0000;
+            --dark-red: #8b0000;
+            --pure-black: #000000;
+            --coal-black: #121212;
+            --steel-gray: #2a2a2a;
+            --smoke-gray: #4a4a4a;
+            --carbon-gray: #333333;
+            --white: #ffffff;
+        }
+        
+        body {
+            font-family: 'Rajdhani', 'Arial Narrow', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--coal-black);
+            color: var(--white);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-image: 
+                linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+                url('https://images.unsplash.com/photo-1593941707882-a5bbbf46e1a1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80');
+            background-size: cover;
+        }
+
+        header {
+            background: linear-gradient(to right, var(--pure-black), var(--coal-black));
+            border-bottom: 3px solid var(--blood-red);
+            padding: 1rem 0;
+            text-align: center;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        header::before {
+            content: "";
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                var(--blood-red) 10px,
+                var(--blood-red) 20px
+            );
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--white);
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+
+        .tables-container {
+            flex: 1;
+            display: flex;
+            padding: 1rem;
+            gap: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .table-wrapper {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .table-wrapper.main-table {
+            flex: 2;
+            min-width: 0;
+        }
+
+        .table-wrapper.secondary-table {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .results-table {
+            width: 100%;
+            height: 100%;
+            border-collapse: collapse;
+            background-color: var(--steel-gray);
+            border: 2px solid var(--blood-red);
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: linear-gradient(to bottom, var(--pure-black), var(--carbon-gray));
+            color: var(--blood-red);
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid var(--smoke-gray);
+            font-size: 0.9rem;
+        }
+
+        .results-table td {
+            padding: 10px 8px;
+            text-align: center;
+            border: 1px solid var(--smoke-gray);
+            font-weight: 600;
+            font-size: 0.85rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .results-table tr:nth-child(odd) {
+            background-color: rgba(42, 42, 42, 0.7);
+        }
+
+        .results-table tr:nth-child(even) {
+            background-color: rgba(51, 51, 51, 0.7);
+        }
+
+        .results-table tr.highlight-row {
+            background-color: var(--dark-red) !important;
+            font-weight: 700;
+        }
+        
+        .results-table tr.position-row {
+            background-color: var(--blood-red) !important;
+            font-weight: 700;
+        }
+
+        @media (max-width: 1200px) {
+            header h1 {
+                font-size: 1.8rem;
+            }
+            .results-table th,
+            .results-table td {
+                padding: 8px 5px;
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .tables-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .table-wrapper.main-table,
+            .table-wrapper.secondary-table {
+                flex: none;
+                height: auto;
+                max-height: 50vh;
+            }
+        }
+        
+        .error-message {
+            text-align: center; 
+            padding: 50px; 
+            color: var(--blood-red); 
+            font-size: 1.5rem;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <h1>РЕЗУЛЬТАТЫ ЗАЕЗДОВ</h1>
+        <p>Последнее обновление: {{ last_updated }}</p>
+    </header>
+
+    {% if error_message %}
+        <div class="error-message">
+            {{ error_message }}
+        </div>
+    {% else %}
+        <div class="tables-container">
+            <!-- Таблица текущего заезда -->
+            <div class="table-wrapper main-table">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Круг/Карт</th>
+                            {% if current_race %}
+                                {% for kart in current_race.karts %}
+                                    <th>{{ kart }}</th>
+                                {% endfor %}
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if current_race %}
+                            {% for lap_num in range(current_race.laps[current_race.karts[0]]|length) %}
+                            <tr>
+                                <td>Круг {{ lap_num + 1 }}</td>
+                                {% for kart in current_race.karts %}
+                                    <td>{{ current_race.laps[kart][lap_num] }} сек</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                            
+                            <!-- Строка с итоговым временем -->
+                            <tr class="highlight-row">
+                                <td><strong>Итог</strong></td>
+                                {% for kart in current_race.karts %}
+                                    <td><strong>{{ current_race.total_times[kart] }} сек</strong></td>
+                                {% endfor %}
+                            </tr>
+                            
+                            <!-- Строка с местами -->
+                            <tr class="position-row">
+                                <td><strong>Место</strong></td>
+                                {% for kart in current_race.karts %}
+                                    <td><strong>{{ current_race.positions[kart] }}</strong></td>
+                                {% endfor %}
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="100%">Нет данных</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Таблица лучших кругов -->
+            <div class="table-wrapper secondary-table">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Карт</th>
+                            <th>Лучший круг</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if best_laps %}
+                            {% for kart, time in best_laps %}
+                            <tr>
+                                <td>{{ kart }}</td>
+                                <td>{{ time }} сек</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="2">Нет данных</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Таблица топ пилотов -->
+            <div class="table-wrapper secondary-table">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Пилот</th>
+                            <th>Лучший круг</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if top_pilots %}
+                            {% for pilot, time in top_pilots %}
+                            <tr>
+                                <td>{{ pilot }}</td>
+                                <td>{{ time }} сек</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="2">Нет данных</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+    
+    <script>
+        // Функция для проверки обновлений
+        function checkForUpdates() {
+            fetch('/check-updates')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.updated) {
+                        location.reload();
+                    } else {
+                        setTimeout(checkForUpdates, 5000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка проверки обновлений:', error);
+                    setTimeout(checkForUpdates, 10000);
+                });
+        }
+        
+        // Запускаем проверку обновлений при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(checkForUpdates, 5000);
+        });
+    </script>
+</body>
+</html>
