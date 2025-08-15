@@ -6,7 +6,7 @@
     <title>Результаты заездов | Karting PRO</title>
     <style>
         :root {
-            --blood-red: #ff3333;
+            --blood-red: #fe1e1e;
             --dark-red: #cc0000;
             --pure-black: #000000;
             --coal-black: #121212;
@@ -73,28 +73,13 @@
             line-height: 1;
         }
 
-        header p {
-            font-size: 3vh;
-            margin: 0.5vh 0 0;
-            color: var(--blood-red);
-            line-height: 1;
-        }
-
-        .tables-container {
+        .table-container {
             flex: 1;
-            display: grid;
-            grid-template-rows: 55% 20% 20%;
-            gap: 1vh;
-            padding: 1.5vh;
+            padding: 2vh;
             box-sizing: border-box;
-            height: 88vh;
-        }
-
-        .table-wrapper {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            position: relative;
+            height: calc(100vh - 12vh - 3vh); /* Вычитаем высоту header и footer */
+            display: flex;
+            flex-direction: column;
         }
 
         .results-table {
@@ -110,24 +95,24 @@
         .results-table th {
             background: linear-gradient(to bottom, var(--pure-black), var(--carbon-gray));
             color: var(--off-white);
-            padding: 1vh;
+            padding: 1.5vh;
             text-align: center;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1.5px;
             border: 2px solid var(--smoke-gray);
-            font-size: 2.5vh;
-            height: 5vh;
+            font-size: 3vh;
+            height: 6vh;
         }
 
         .results-table td {
-            padding: 1vh;
+            padding: 1.5vh;
             text-align: center;
             border: 2px solid var(--smoke-gray);
             font-weight: 600;
-            font-size: 2.2vh;
+            font-size: 2.8vh;
             color: var(--off-white);
-            height: 4vh;
+            height: 5vh;
         }
 
         .results-table tr:nth-child(odd) {
@@ -148,10 +133,15 @@
             font-weight: 700;
         }
 
+        .avg-row {
+            background-color: var(--steel-gray) !important;
+            font-weight: 700;
+        }
+
         .error-message {
             text-align: center; 
             padding: 3vh; 
-            color: var(--off-whited); 
+            color: var(--off-white); 
             font-size: 4vh;
             flex: 1;
             display: flex;
@@ -160,18 +150,22 @@
             text-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
         }
 
-        /* Адаптация количества отображаемых строк */
-        .main-table tbody {
-            display: block;
-            height: calc(100% - 7vh);
-            overflow: hidden;
+        footer {
+            text-align: center;
+            padding: 0.5vh 0;
+            font-size: 1.8vh;
+            color: var(--smoke-gray);
+            background-color: rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 10;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+            flex-shrink: 0;
+            height: 3vh;
         }
-
-        .main-table thead,
-        .main-table tbody tr {
-            display: table;
-            width: 100%;
-            table-layout: fixed;
+        
+        footer:hover {
+            opacity: 1;
         }
 
         /* Анимация для обновления данных */
@@ -189,7 +183,6 @@
 <body>
     <header>
         <h1>РЕЗУЛЬТАТЫ ЗАЕЗДОВ</h1>
-        <p>Обновлено: {{ last_updated }}</p>
     </header>
 
     {% if error_message %}
@@ -197,101 +190,59 @@
             {{ error_message }}
         </div>
     {% else %}
-        <div class="tables-container">
-            <!-- Основная таблица (занимает больше места) -->
-            <div class="table-wrapper">
-                <table class="results-table main-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 20%;">Круг/Карт</th>
-                            {% if current_race %}
-                                {% for kart in current_race.karts %}
-                                    <th>{{ kart }}</th>
-                                {% endfor %}
-                            {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
+        <div class="table-container">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">Круг</th>
                         {% if current_race %}
-                            {% for lap_num in range(current_race.laps[current_race.karts[0]]|length) %}
-                            <tr>
-                                <td>{{ lap_num + 1 }}</td>
-                                {% for kart in current_race.karts %}
-                                    <td>{{ current_race.laps[kart][lap_num] }}"</td>
-                                {% endfor %}
-                            </tr>
+                            {% for kart in current_race.karts %}
+                                <th>{{ kart }}</th>
                             {% endfor %}
-                            
-                            <!-- Итоговые строки -->
-                            <tr class="highlight-row">
-                                <td>Итог</td>
-                                {% for kart in current_race.karts %}
-                                    <td>{{ current_race.total_times[kart] }}"</td>
-                                {% endfor %}
-                            </tr>
-                            
-                            <tr class="position-row">
-                                <td>Место</td>
-                                {% for kart in current_race.karts %}
-                                    <td>{{ current_race.positions[kart] }}</td>
-                                {% endfor %}
-                            </tr>
-                        {% else %}
-                            <tr><td colspan="100%">Нет данных</td></tr>
                         {% endif %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Таблица лучших кругов (компактная) -->
-            <div class="table-wrapper">
-                <table class="results-table">
-                    <thead>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if current_race %}
+                        {% for lap_num in range(current_race.laps[current_race.karts[0]]|length) %}
                         <tr>
-                            <th style="width: 60%;">Лучшие круги</th>
-                            <th style="width: 40%;">Время</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if best_laps %}
-                            {% for kart, time in best_laps %}
-                            <tr>
-                                <td>Карт {{ kart }}</td>
-                                <td>{{ time }}"</td>
-                            </tr>
+                            <td>{{ lap_num + 1 }}</td>
+                            {% for kart in current_race.karts %}
+                                <td>{{ current_race.laps[kart][lap_num] }}"</td>
                             {% endfor %}
-                        {% else %}
-                            <tr><td colspan="2">Нет данных</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Таблица топ пилотов (компактная) -->
-            <div class="table-wrapper">
-                <table class="results-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 60%;">Топ пилоты</th>
-                            <th style="width: 40%;">Время</th>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% if top_pilots %}
-                            {% for pilot, time in top_pilots %}
-                            <tr>
-                                <td>{{ pilot }}</td>
-                                <td>{{ time }}"</td>
-                            </tr>
+                        {% endfor %}
+                        
+                        <!-- Итоговые строки -->
+                        <tr class="highlight-row">
+                            <td>Лучший круг</td>
+                            {% for kart in current_race.karts %}
+                                <td>{{ current_race.best_times[kart] | round(2) }}"</td>
                             {% endfor %}
-                        {% else %}
-                            <tr><td colspan="2">Нет данных</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
+                        </tr>
+                        <tr class="avg-row">
+                            <td>Средний круг</td>
+                            {% for kart in current_race.karts %}
+                                <td>{{ current_race.avg_times[kart] | round(2) }}"</td>
+                            {% endfor %}
+                        </tr>
+                        <tr class="position-row">
+                            <td>Место</td>
+                            {% for kart in current_race.karts %}
+                                <td>{{ current_race.positions[kart] }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="100%">Нет данных</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
         </div>
     {% endif %}
+    
+    <footer>
+        Обновлено: {{ last_updated }}
+    </footer>
     
     <script>
         // Функция для проверки обновлений

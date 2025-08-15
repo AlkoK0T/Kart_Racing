@@ -43,13 +43,16 @@ def load_race_data(data_folder=Config.DATA_FOLDER):
                 laps = data['laps']
                 karts = list(laps.keys())
                 
-                # Вычисляем итоговое время и места
-                total_times = {}
+                # Вычисляем лучшее время и среднее время для каждого карта
+                best_times = {}
+                avg_times = {}
                 for kart in karts:
-                    total_times[kart] = round(sum(laps[kart]), 2)
+                    times = laps[kart]
+                    best_times[kart] = min(times)
+                    avg_times[kart] = sum(times) / len(times)
                 
-                # Определяем места картов
-                sorted_karts = sorted(total_times.items(), key=lambda x: x[1])
+                # Определяем места картов по лучшему времени
+                sorted_karts = sorted(best_times.items(), key=lambda x: x[1])
                 positions = {}
                 for position, (kart, _) in enumerate(sorted_karts, start=1):
                     positions[kart] = position
@@ -57,7 +60,8 @@ def load_race_data(data_folder=Config.DATA_FOLDER):
                 current_race = {
                     'karts': karts,
                     'laps': laps,
-                    'total_times': total_times,
+                    'best_times': best_times,
+                    'avg_times': avg_times,
                     'positions': positions,
                     'type': 'current_race'
                 }
