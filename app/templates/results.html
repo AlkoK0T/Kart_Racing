@@ -1,4 +1,3 @@
-<!-- results.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -7,14 +6,14 @@
     <title>Результаты заездов | Karting PRO</title>
     <style>
         :root {
-            --blood-red: #ff0000;
-            --dark-red: #8b0000;
+            --blood-red: #ff3333;
+            --dark-red: #cc0000;
             --pure-black: #000000;
             --coal-black: #121212;
             --steel-gray: #2a2a2a;
             --smoke-gray: #4a4a4a;
             --carbon-gray: #333333;
-            --white: #ffffff;
+            --off-white: #f0f0f0;
         }
         
         body {
@@ -22,77 +21,80 @@
             margin: 0;
             padding: 0;
             background-color: var(--coal-black);
-            color: var(--white);
+            color: var(--off-white);
             height: 100vh;
+            width: 100vw;
             display: flex;
             flex-direction: column;
             overflow: hidden;
             background-image: 
-                linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+                linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
                 url('https://images.unsplash.com/photo-1593941707882-a5bbbf46e1a1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80');
             background-size: cover;
         }
 
         header {
-            background: linear-gradient(to right, var(--pure-black), var(--coal-black));
-            border-bottom: 3px solid var(--blood-red);
-            padding: 1rem 0;
+            background: linear-gradient(to bottom, var(--pure-black), var(--coal-black));
+            border-bottom: 4px solid var(--blood-red);
+            padding: 1vh 0;
             text-align: center;
             position: relative;
             flex-shrink: 0;
+            height: 12vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         header::before {
             content: "";
             position: absolute;
-            bottom: -10px;
+            bottom: -12px;
             left: 0;
             right: 0;
-            height: 5px;
+            height: 6px;
             background: repeating-linear-gradient(
                 45deg,
                 transparent,
-                transparent 10px,
-                var(--blood-red) 10px,
-                var(--blood-red) 20px
+                transparent 12px,
+                var(--blood-red) 12px,
+                var(--blood-red) 24px
             );
         }
 
         header h1 {
             margin: 0;
-            font-size: 2.2rem;
+            font-size: 5vh;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
             text-transform: uppercase;
-            color: var(--white);
-            text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            color: var(--blood-red);
+            text-shadow: 0 0 15px rgba(255, 50, 50, 0.7);
+            line-height: 1;
+        }
+
+        header p {
+            font-size: 3vh;
+            margin: 0.5vh 0 0;
+            color: var(--blood-red);
+            line-height: 1;
         }
 
         .tables-container {
             flex: 1;
-            display: flex;
-            padding: 1rem;
-            gap: 1rem;
-            width: 100%;
+            display: grid;
+            grid-template-rows: 55% 20% 20%;
+            gap: 1vh;
+            padding: 1.5vh;
             box-sizing: border-box;
-            overflow: hidden;
+            height: 88vh;
         }
 
         .table-wrapper {
+            width: 100%;
             height: 100%;
-            display: flex;
-            flex-direction: column;
             overflow: hidden;
-        }
-
-        .table-wrapper.main-table {
-            flex: 2;
-            min-width: 0;
-        }
-
-        .table-wrapper.secondary-table {
-            flex: 1;
-            min-width: 0;
+            position: relative;
         }
 
         .results-table {
@@ -100,39 +102,40 @@
             height: 100%;
             border-collapse: collapse;
             background-color: var(--steel-gray);
-            border: 2px solid var(--blood-red);
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+            border: 3px solid var(--blood-red);
+            box-shadow: 0 0 20px rgba(255, 50, 50, 0.4);
             table-layout: fixed;
         }
 
         .results-table th {
             background: linear-gradient(to bottom, var(--pure-black), var(--carbon-gray));
-            color: var(--blood-red);
-            padding: 12px 8px;
+            color: var(--off-white);
+            padding: 1vh;
             text-align: center;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            border: 1px solid var(--smoke-gray);
-            font-size: 0.9rem;
+            letter-spacing: 1.5px;
+            border: 2px solid var(--smoke-gray);
+            font-size: 2.5vh;
+            height: 5vh;
         }
 
         .results-table td {
-            padding: 10px 8px;
+            padding: 1vh;
             text-align: center;
-            border: 1px solid var(--smoke-gray);
+            border: 2px solid var(--smoke-gray);
             font-weight: 600;
-            font-size: 0.85rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-size: 2.2vh;
+            color: var(--off-white);
+            height: 4vh;
         }
 
         .results-table tr:nth-child(odd) {
-            background-color: rgba(42, 42, 42, 0.7);
+            background-color: rgba(42, 42, 42, 0.8);
         }
 
         .results-table tr:nth-child(even) {
-            background-color: rgba(51, 51, 51, 0.7);
+            background-color: rgba(51, 51, 51, 0.8);
         }
 
         .results-table tr.highlight-row {
@@ -145,39 +148,40 @@
             font-weight: 700;
         }
 
-        @media (max-width: 1200px) {
-            header h1 {
-                font-size: 1.8rem;
-            }
-            .results-table th,
-            .results-table td {
-                padding: 8px 5px;
-                font-size: 0.8rem;
-            }
-        }
-
-        @media (max-width: 992px) {
-            .tables-container {
-                flex-direction: column;
-                gap: 1rem;
-            }
-            .table-wrapper.main-table,
-            .table-wrapper.secondary-table {
-                flex: none;
-                height: auto;
-                max-height: 50vh;
-            }
-        }
-        
         .error-message {
             text-align: center; 
-            padding: 50px; 
-            color: var(--blood-red); 
-            font-size: 1.5rem;
+            padding: 3vh; 
+            color: var(--off-whited); 
+            font-size: 4vh;
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+        }
+
+        /* Адаптация количества отображаемых строк */
+        .main-table tbody {
+            display: block;
+            height: calc(100% - 7vh);
+            overflow: hidden;
+        }
+
+        .main-table thead,
+        .main-table tbody tr {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        /* Анимация для обновления данных */
+        @keyframes flash {
+            0% { background-color: var(--blood-red); }
+            100% { background-color: inherit; }
+        }
+
+        .updated {
+            animation: flash 1s;
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -185,7 +189,7 @@
 <body>
     <header>
         <h1>РЕЗУЛЬТАТЫ ЗАЕЗДОВ</h1>
-        <p>Последнее обновление: {{ last_updated }}</p>
+        <p>Обновлено: {{ last_updated }}</p>
     </header>
 
     {% if error_message %}
@@ -194,12 +198,12 @@
         </div>
     {% else %}
         <div class="tables-container">
-            <!-- Таблица текущего заезда -->
-            <div class="table-wrapper main-table">
-                <table class="results-table">
+            <!-- Основная таблица (занимает больше места) -->
+            <div class="table-wrapper">
+                <table class="results-table main-table">
                     <thead>
                         <tr>
-                            <th>Круг/Карт</th>
+                            <th style="width: 20%;">Круг/Карт</th>
                             {% if current_race %}
                                 {% for kart in current_race.karts %}
                                     <th>{{ kart }}</th>
@@ -211,26 +215,25 @@
                         {% if current_race %}
                             {% for lap_num in range(current_race.laps[current_race.karts[0]]|length) %}
                             <tr>
-                                <td>Круг {{ lap_num + 1 }}</td>
+                                <td>{{ lap_num + 1 }}</td>
                                 {% for kart in current_race.karts %}
-                                    <td>{{ current_race.laps[kart][lap_num] }} сек</td>
+                                    <td>{{ current_race.laps[kart][lap_num] }}"</td>
                                 {% endfor %}
                             </tr>
                             {% endfor %}
                             
-                            <!-- Строка с итоговым временем -->
+                            <!-- Итоговые строки -->
                             <tr class="highlight-row">
-                                <td><strong>Итог</strong></td>
+                                <td>Итог</td>
                                 {% for kart in current_race.karts %}
-                                    <td><strong>{{ current_race.total_times[kart] }} сек</strong></td>
+                                    <td>{{ current_race.total_times[kart] }}"</td>
                                 {% endfor %}
                             </tr>
                             
-                            <!-- Строка с местами -->
                             <tr class="position-row">
-                                <td><strong>Место</strong></td>
+                                <td>Место</td>
                                 {% for kart in current_race.karts %}
-                                    <td><strong>{{ current_race.positions[kart] }}</strong></td>
+                                    <td>{{ current_race.positions[kart] }}</td>
                                 {% endfor %}
                             </tr>
                         {% else %}
@@ -240,21 +243,21 @@
                 </table>
             </div>
 
-            <!-- Таблица лучших кругов -->
-            <div class="table-wrapper secondary-table">
+            <!-- Таблица лучших кругов (компактная) -->
+            <div class="table-wrapper">
                 <table class="results-table">
                     <thead>
                         <tr>
-                            <th>Карт</th>
-                            <th>Лучший круг</th>
+                            <th style="width: 60%;">Лучшие круги</th>
+                            <th style="width: 40%;">Время</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% if best_laps %}
                             {% for kart, time in best_laps %}
                             <tr>
-                                <td>{{ kart }}</td>
-                                <td>{{ time }} сек</td>
+                                <td>Карт {{ kart }}</td>
+                                <td>{{ time }}"</td>
                             </tr>
                             {% endfor %}
                         {% else %}
@@ -264,13 +267,13 @@
                 </table>
             </div>
 
-            <!-- Таблица топ пилотов -->
-            <div class="table-wrapper secondary-table">
+            <!-- Таблица топ пилотов (компактная) -->
+            <div class="table-wrapper">
                 <table class="results-table">
                     <thead>
                         <tr>
-                            <th>Пилот</th>
-                            <th>Лучший круг</th>
+                            <th style="width: 60%;">Топ пилоты</th>
+                            <th style="width: 40%;">Время</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -278,7 +281,7 @@
                             {% for pilot, time in top_pilots %}
                             <tr>
                                 <td>{{ pilot }}</td>
-                                <td>{{ time }} сек</td>
+                                <td>{{ time }}"</td>
                             </tr>
                             {% endfor %}
                         {% else %}
@@ -297,7 +300,12 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.updated) {
-                        location.reload();
+                        // Добавляем анимацию обновления
+                        document.querySelectorAll('tr').forEach(row => {
+                            row.classList.add('updated');
+                            setTimeout(() => row.classList.remove('updated'), 1000);
+                        });
+                        setTimeout(() => location.reload(), 1000);
                     } else {
                         setTimeout(checkForUpdates, 5000);
                     }
@@ -311,6 +319,18 @@
         // Запускаем проверку обновлений при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(checkForUpdates, 5000);
+            
+            // Адаптация размера шрифта при необходимости
+            function adjustFontSize() {
+                const header = document.querySelector('header');
+                if (header.scrollHeight > header.offsetHeight) {
+                    const h1 = document.querySelector('header h1');
+                    const currentSize = parseFloat(window.getComputedStyle(h1).fontSize);
+                    h1.style.fontSize = (currentSize - 1) + 'px';
+                }
+            }
+            
+            adjustFontSize();
         });
     </script>
 </body>
