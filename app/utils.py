@@ -23,8 +23,6 @@ def load_race_data(data_folder=Config.DATA_FOLDER):
             return None
         
         current_race = None
-        best_laps = []
-        top_pilots = []
         
         # Сортируем файлы по времени изменения (новые первыми)
         sorted_files = sorted(
@@ -46,9 +44,13 @@ def load_race_data(data_folder=Config.DATA_FOLDER):
                 # Вычисляем лучшее время и среднее время для каждого карта
                 best_times = {}
                 avg_times = {}
+                max_time = 0
                 for kart in karts:
+                    if not laps[kart]:
+                        laps[kart]=[0]
                     times = laps[kart]
                     best_times[kart] = min(times)
+                    max_time = max(max_time,len(times)) 
                     avg_times[kart] = sum(times) / len(times)
                 
                 # Определяем места картов по лучшему времени
@@ -63,25 +65,15 @@ def load_race_data(data_folder=Config.DATA_FOLDER):
                     'best_times': best_times,
                     'avg_times': avg_times,
                     'positions': positions,
+                    'max_time' : max_time,
                     'type': 'current_race'
                 }
                 
-                # Формируем список лучших кругов из текущего заезда
-                best_laps = [(kart, min(times)) for kart, times in laps.items()]
-            
-            # Обработка данных лучших кругов
-            if not best_laps and 'best_laps' in data and isinstance(data['best_laps'], list):
-                best_laps = data['best_laps']
-            
-            # Обработка данных топ пилотов
-            if not top_pilots and 'top_pilots' in data and isinstance(data['top_pilots'], list):
-                top_pilots = data['top_pilots']
+
         
         # Сортируем и ограничиваем количество записей
         return {
             'current_race': current_race,
-            'best_laps': sorted(best_laps, key=lambda x: x[1])[:5] if best_laps else [],
-            'top_pilots': sorted(top_pilots, key=lambda x: x[1])[:5] if top_pilots else [],
             'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
     except Exception as e:
