@@ -35,7 +35,7 @@ def load_race_data(data_folder=Config.DATA_FOLDER):
         
         for filename in sorted_files:
             filepath = os.path.join(data_folder, filename)
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, 'r', encoding='cp1251', errors='ignore') as f:
                 data = yaml.safe_load(f)
             
             # Обработка данных текущего заезда
