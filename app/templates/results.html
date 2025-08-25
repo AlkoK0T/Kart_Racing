@@ -75,9 +75,9 @@
 
         .table-container {
             flex: 1;
-            padding: 2vh;
+            padding: 3px;
             box-sizing: border-box;
-            height: calc(100vh - 12vh - 3vh); /* Вычитаем высоту header и footer */
+            height: calc(100vh); /* Вычитаем высоту header и footer */
             display: flex;
             flex-direction: column;
         }
@@ -101,18 +101,18 @@
             text-transform: uppercase;
             letter-spacing: 1.5px;
             border: 2px solid var(--smoke-gray);
-            font-size: 3vh;
+            font-size: 4vh;
             height: 6vh;
         }
 
         .results-table td {
-            padding: 1.5vh;
+            padding: 1vh;
             text-align: center;
             border: 2px solid var(--smoke-gray);
             font-weight: 600;
             font-size: 2.8vh;
             color: var(--off-white);
-            height: 5vh;
+            height: 3.2vh;
         }
 
         .results-table tr:nth-child(odd) {
@@ -137,6 +137,17 @@
             background-color: var(--steel-gray) !important;
             font-weight: 700;
         }
+
+        .results-table tr.legend-row {
+            background-color: var(--steel-gray) !important;
+            font-weight: 500;
+        }
+
+        .results-table tr.legend-row td {
+            font-size: 1vh;
+            height: 1.2vh;
+        }
+
 
         .error-message {
             text-align: center; 
@@ -181,10 +192,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <header>
-        <h1>РЕЗУЛЬТАТЫ ЗАЕЗДОВ</h1>
-    </header>
-
     {% if error_message %}
         <div class="error-message">
             {{ error_message }}
@@ -194,7 +201,7 @@
             <table class="results-table">
                 <thead>
                     <tr>
-                        <th style="width: 20%;">Круг</th>
+                        <th style="width: 5%;">#</th>
                         {% if current_race %}
                             {% for kart in current_race.karts %}
                                 <th>{{ kart }}</th>
@@ -204,33 +211,36 @@
                 </thead>
                 <tbody>
                     {% if current_race %}
-                        {% for lap_num in range(current_race.max_time) %}
+                        {% for lap_num in range(current_race.max_time)[-10:] %}
                         <tr>
                             <td>{{ lap_num + 1 }}</td>
                             {% for kart in current_race.karts %}
-                                <td>{{ current_race.laps[kart][lap_num] }}"</td>
+                                <td>{{ current_race.laps[kart][lap_num] | float | round(2) if current_race.laps[kart][lap_num] }}</td>
                             {% endfor %}
                         </tr>
                         {% endfor %}
                         
                         <!-- Итоговые строки -->
                         <tr class="highlight-row">
-                            <td>Лучший круг</td>
+                            <td>Л</td>
                             {% for kart in current_race.karts %}
-                                <td>{{ current_race.best_times[kart] | round(2) }}"</td>
+                                <td>{{ current_race.best_times[kart] | round(2) }}</td>
                             {% endfor %}
                         </tr>
                         <tr class="avg-row">
-                            <td>Средний круг</td>
+                            <td>С</td>
                             {% for kart in current_race.karts %}
-                                <td>{{ current_race.avg_times[kart] | round(2) }}"</td>
+                                <td>{{ current_race.avg_times[kart] | round(2) }}</td>
                             {% endfor %}
                         </tr>
                         <tr class="position-row">
-                            <td>Место</td>
+                            <td>М</td>
                             {% for kart in current_race.karts %}
                                 <td>{{ current_race.positions[kart] }}</td>
                             {% endfor %}
+                        </tr>
+                        <tr class="legend-row">
+                            <td colspan="{{current_race.karts | length + 1 }}">Л-лучший С-средний М-место</td>
                         </tr>
                     {% else %}
                         <tr><td colspan="100%">Нет данных</td></tr>
