@@ -7,13 +7,19 @@
     <style>
         :root {
             --blood-red: #fe1e1e;
-            --dark-red: #cc0000;
+            --light-green: #85ad3b;
             --pure-black: #000000;
             --coal-black: #121212;
-            --steel-gray: #2a2a2a;
+            --steel-gray: #1e1e1e; /* Цвет для чередования */
             --smoke-gray: #4a4a4a;
-            --carbon-gray: #333333;
+            --carbon-gray: #3c3c3c;/* Цвет для чередования */
             --off-white: #f0f0f0;
+            --racing-green: #00cc44; /*Для лучших кругов */
+            --positive-green: #33cc33; /* Зеленый для положительной дельты */
+            --negative-red: #ff3333;   /* Красный для отрицательной дельты */
+            --neutral-gray: #888888;   /* Серый для нулевой дельты */
+            --orange: #ff9100;   /* Серый для нулевой дельты */
+
         }
         
         body {
@@ -124,12 +130,22 @@
         }
 
         .results-table tr.highlight-row {
-            background-color: var(--dark-red) !important;
+            background-color: var(--light-green) !important;
             font-weight: 700;
         }
         
         .results-table tr.position-row {
             background-color: var(--blood-red) !important;
+            font-weight: 1000;
+        }
+
+        .results-table tr.position-row td {
+            font-size: 3.5vh;
+            font-weight: 900;
+        }
+
+        .results-table tr.delta-row {
+            background-color: var(--steel-gray) !important;
             font-weight: 700;
         }
 
@@ -147,7 +163,30 @@
             font-size: 1vh;
             height: 1.2vh;
         }
+        
+        /* Стиль для лучшего времени в столбце */
+        .best-lap {
+            background-color: var(--racing-green) !important;
+            color: var(--pure-black) !important;
+            font-weight: 700;
+            box-shadow: 0 0 10px rgba(0, 204, 68, 0.5);
+        }
 
+        /* Стили для дельты */
+        .delta-positive {
+            color: var(--positive-green) !important;
+            font-weight: 700;
+        }
+        
+        .delta-negative {
+            color: var(--negative-red) !important;
+            font-weight: 700;
+        }
+        
+        .delta-neutral {
+            color: var(--neutral-gray) !important;
+            font-weight: 700;
+        }
 
         .error-message {
             text-align: center; 
@@ -211,28 +250,59 @@
                 </thead>
                 <tbody>
                     {% if current_race %}
-                        {% for lap_num in range(current_race.max_time)[-10:] %}
+                        {% set num_karts = current_race.karts | length %}
+                        {% set decimal_places = 2 if num_karts > 4 else 3 %}
+                        
+                        {% for lap_num in range(10 if current_race.max_time<10 else current_race.max_time)[-10:] %}
                         <tr>
                             <td>{{ lap_num + 1 }}</td>
                             {% for kart in current_race.karts %}
-                                <td>{{ current_race.laps[kart][lap_num] | float | round(2) if current_race.laps[kart][lap_num] }}</td>
+                                {% set lap_time = current_race.laps[kart][lap_num] | float if current_race.laps[kart][lap_num] %}
+                                {% set best_time = current_race.best_times[kart] | float %}
+                                <td class="{% if lap_time == best_time %}best-lap{% endif %}">
+                                    {% if lap_time %}
+                                        {{ "%.*f" | format(decimal_places, lap_time) }}
+                                    {% endif %}
+                                </td>
                             {% endfor %}
                         </tr>
                         {% endfor %}
                         
                         <!-- Итоговые строки -->
+                        <!-- Строка дельты (последний круг относительно лучшего) -->
+                        <tr class="delta-row">
+                            <td>Δ</td>
+                            {% for kart in current_race.karts %}
+                                {% set last_lap_time = current_race.laps[kart][-1] | float if current_race.laps[kart][-1] %}
+                                {% set prelast_lap_time = current_race.laps[kart][-2] | float if current_race.laps[kart][-2] %}
+                                {% if last_lap_time and prelast_lap_time %}
+                                    {% set delta = last_lap_time - prelast_lap_time %}
+                                    {% if delta > 0 %}
+                                        <td class="delta-negative">+{{ "%.*f" | format(decimal_places, delta) }}</td>
+                                    {% elif delta < 0 %}
+                                        <td class="delta-positive">{{ "%.*f" | format(decimal_places, delta) }}</td>
+                                    {% else %}
+                                        <td class="delta-neutral">0.{{ "0" * decimal_places }}</td>
+                                    {% endif %}
+                                {% else %}
+                                    <td>-</td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
                         <tr class="highlight-row">
                             <td>Л</td>
                             {% for kart in current_race.karts %}
-                                <td>{{ current_race.best_times[kart] | round(2) }}</td>
+                                <td>{{ "%.*f" | format(decimal_places, current_race.best_times[kart]) }}</td>
                             {% endfor %}
                         </tr>
                         <tr class="avg-row">
                             <td>С</td>
                             {% for kart in current_race.karts %}
-                                <td>{{ current_race.avg_times[kart] | round(2) }}</td>
+                                <td>{{ "%.*f" | format(decimal_places, current_race.avg_times[kart]) }}</td>
                             {% endfor %}
                         </tr>
+                        
+                        
                         <tr class="position-row">
                             <td>М</td>
                             {% for kart in current_race.karts %}
@@ -240,7 +310,7 @@
                             {% endfor %}
                         </tr>
                         <tr class="legend-row">
-                            <td colspan="{{current_race.karts | length + 1 }}">Л-лучший С-средний М-место</td>
+                            <td colspan="{{current_race.karts | length + 1 }}">Л-лучший С-средний М-место Δ-дельта (последний круг относительно лучшего)</td>
                         </tr>
                     {% else %}
                         <tr><td colspan="100%">Нет данных</td></tr>
