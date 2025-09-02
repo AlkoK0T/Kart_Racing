@@ -35,4 +35,4 @@ def check_updates():
         current_update_time = get_last_update_time(Config.DATA_FOLDER)
     
     last_update_time = current_update_time
-    return jsonify({'updated': True})
+    return jsonify({'updated': last_update_time})   

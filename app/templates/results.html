@@ -310,7 +310,7 @@
                             {% endfor %}
                         </tr>
                         <tr class="legend-row">
-                            <td colspan="{{current_race.karts | length + 1 }}">Л-лучший С-средний М-место Δ-дельта (последний круг относительно лучшего)</td>
+                            <td colspan="{{current_race.karts | length + 1 }}">Л-ЛУЧШИЙ С-СРЕДНИЙ М-МЕСТО Δ-ДЕЛЬТА (ПОСЛЕДНИЙ КРУГ ОТНОСИТЕЛЬНО ЛУЧШЕГО)</td>
                         </tr>
                     {% else %}
                         <tr><td colspan="100%">Нет данных</td></tr>
@@ -325,30 +325,53 @@
     </footer>
     
     <script>
+        // Глобальная переменная для хранения времени последнего обновления
+        let lastUpdateTime = "{{ last_updated }}";
+        
         // Функция для проверки обновлений
         function checkForUpdates() {
             fetch('/check-updates')
                 .then(response => response.json())
                 .then(data => {
-                    if (data.updated) {
+                    if (data.error) {
+                        console.error('Ошибка при проверке обновлений:', data.error);
+                        setTimeout(checkForUpdates, 10000);
+                        return;
+                    }
+                    
+                    // Сравниваем время с предыдущим значением
+                    if (data.last_updated !== lastUpdateTime) {
+                        console.log('Обнаружены новые данные!', {
+                            'старое время': lastUpdateTime,
+                            'новое время': data.last_updated
+                        });
+                        
+                        // Обновляем глобальную переменную
+                        lastUpdateTime = data.last_updated;
+                        
                         // Добавляем анимацию обновления
                         document.querySelectorAll('tr').forEach(row => {
                             row.classList.add('updated');
                             setTimeout(() => row.classList.remove('updated'), 1000);
                         });
+                        
+                        // Перезагружаем страницу через секунду
                         setTimeout(() => location.reload(), 1000);
                     } else {
-                        setTimeout(checkForUpdates, 5000);
+                        // Если обновлений нет, проверяем снова через заданное время
+                        console.log('Обновлений нет, проверяем снова...');
+                        setTimeout(checkForUpdates, сurrent_race.UPD_TIME); // 5 секунд
                     }
                 })
                 .catch(error => {
                     console.error('Ошибка проверки обновлений:', error);
-                    setTimeout(checkForUpdates, 10000);
+                    setTimeout(checkForUpdates, 10000); // 10 секунд при ошибке
                 });
         }
         
         // Запускаем проверку обновлений при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Начало отслеживания обновлений. Время последнего обновления:', lastUpdateTime);
             setTimeout(checkForUpdates, 5000);
             
             // Адаптация размера шрифта при необходимости

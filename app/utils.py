@@ -66,6 +66,7 @@ def load_race_data(data_folder=Config.DATA_FOLDER):
                     'avg_times': avg_times,
                     'positions': positions,
                     'max_time' : max_time,
+                    'UPD_TIME' : Config.UPDATE_TIME,
                     'type': 'current_race'
                 }
                 
