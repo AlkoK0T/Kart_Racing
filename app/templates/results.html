@@ -18,7 +18,7 @@
             --positive-green: #33cc33; /* Зеленый для положительной дельты */
             --negative-red: #ff3333;   /* Красный для отрицательной дельты */
             --neutral-gray: #888888;   /* Серый для нулевой дельты */
-            --orange: #ff9100;   /* Серый для нулевой дельты */
+            --orange: #ff0000;   /* Серый для нулевой дельты */
 
         }
         
@@ -218,15 +218,17 @@
             opacity: 1;
         }
 
-        /* Анимация для обновления данных */
-        @keyframes flash {
-            0% { background-color: var(--blood-red); }
-            100% { background-color: inherit; }
+        /* Анимация плавного поднятия таблицы при обновлении */
+        @keyframes lift {
+            0% { transform: translateY(0); opacity: 1; }
+            50% { transform: translateY(-15px); opacity: 0.9; }
+            100% { transform: translateY(0); opacity: 1; }
         }
 
         .updated {
-            animation: flash 1s;
+            animation: lift 0.8s ease-in-out;
         }
+
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -240,7 +242,7 @@
             <table class="results-table">
                 <thead>
                     <tr>
-                        <th style="width: 5%;">#</th>
+                        <th style="width: 5%;">LAPS</th>
                         {% if current_race %}
                             {% for kart in current_race.karts %}
                                 <th>{{ kart }}</th>
@@ -271,7 +273,7 @@
                         <!-- Итоговые строки -->
                         <!-- Строка дельты (последний круг относительно лучшего) -->
                         <tr class="delta-row">
-                            <td>Δ</td>
+                            <td>DIFF</td>
                             {% for kart in current_race.karts %}
                                 {% set last_lap_time = current_race.laps[kart][-1] | float if current_race.laps[kart][-1] %}
                                 {% set prelast_lap_time = current_race.laps[kart][-2] | float if current_race.laps[kart][-2] %}
@@ -290,13 +292,13 @@
                             {% endfor %}
                         </tr>
                         <tr class="highlight-row">
-                            <td>Л</td>
+                            <td>BEST</td>
                             {% for kart in current_race.karts %}
                                 <td>{{ "%.*f" | format(decimal_places, current_race.best_times[kart]) }}</td>
                             {% endfor %}
                         </tr>
                         <tr class="avg-row">
-                            <td>С</td>
+                            <td>AVG</td>
                             {% for kart in current_race.karts %}
                                 <td>{{ "%.*f" | format(decimal_places, current_race.avg_times[kart]) }}</td>
                             {% endfor %}
@@ -304,9 +306,9 @@
                         
                         
                         <tr class="position-row">
-                            <td>М</td>
+                            <td>BEST DIFF</td>
                             {% for kart in current_race.karts %}
-                                <td>{{ current_race.positions[kart] }}</td>
+                                <td>{{ "%.*f" | format(decimal_places, current_race.time_deltas[kart] | float) }}</td>
                             {% endfor %}
                         </tr>
                         <tr class="legend-row">

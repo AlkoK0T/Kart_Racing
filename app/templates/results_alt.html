@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karting PRO</title>
+    <style>
+        :root {
+            --blood-red: #fe1e1e;
+            --light-green: #85ad3b;
+            --black: #000;
+            --gray: #1a1a1a;
+            --white: #f7f7f7;
+            --accent: #ffca28;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--black);
+            color: var(--white);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        main {
+            width: 100%;
+            height: 100%;
+            background: var(--gray);
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        table {
+            width: 100%;
+            height: 100%;
+            border-collapse: collapse;
+            font-size: 1.4rem;
+            table-layout: fixed;
+        }
+
+        th, td {
+            text-align: center;
+            padding: 1rem;
+            border-bottom: 2px solid #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        th {
+            background: var(--blood-red);
+            color: var(--white);
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        tr.update-row {
+            animation: flashUpdate 0.8s ease-in-out;
+        }
+
+        @keyframes flashUpdate {
+            from { background: rgba(255, 255, 0, 0.2); }
+            to { background: transparent; }
+        }
+
+        .info {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 1rem;
+            color: #ccc;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        {% if error_message %}
+            <div class="error">{{ error_message }}</div>
+        {% else %}
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th>POS</th>
+                        <th>NUM</th>
+                        <th>BEST LAP</th>
+                        <th>LAST LAP</th>
+                        <th>TOTAL TIME</th>
+                        <th>LAPS</th>
+                        <th>DIFF</th>
+                        <th>GAP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for kart in current_race.karts %}
+                    <tr {% if current_race.positions[kart] == 1 %} style="background: #333; font-weight: bold;" {% endif %}>
+                        <td>{{ current_race.positions[kart] }}</td>
+                        <td>{{ kart }}</td>
+                        <td>{{ "%.3f"|format(current_race.best_times[kart]) }}</td>
+                        <td>{{ "%.3f"|format(current_race.last_laps[kart]) }}</td>
+                        <td>{{ "%.3f"|format(current_race.total_time[kart]) }}</td>
+                        <td>{{ current_race.total_laps[kart] }}</td>
+                        <td style="color: {% if current_race.diff[kart] < 0 %} var(--light-green) {% elif current_race.diff[kart] > 0 %} var(--blood-red) {% else %} var(--white) {% endif %};">
+                            {{ "%.3f"|format(current_race.diff[kart]) }}
+                        </td>
+                        <td>{{ "%.3f"|format(current_race.time_deltas[kart]) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+            <div class="info">
+                Last update: <span id="last-update">{{ last_updated }}</span>
+                <div id="loading" style="display:none;">
+                    <div class="spinner"></div> Updating data...
+                </div>
+            </div>
+        {% endif %}
+    </main>
+
+    <script>
+        const checkUrl = '/check-updates';
+        const reloadDelay = 300;
+
+        async function checkForUpdates() {
+            try {
+                const res = await fetch(checkUrl);
+                const data = await res.json();
+                if (data.updated) {
+                    document.getElementById('loading').style.display = 'block';
+                    await new Promise(r => setTimeout(r, reloadDelay));
+                    location.reload();
+                }
+            } catch (e) {
+                console.error('Ошибка обновления:', e);
+            } finally {
+                setTimeout(checkForUpdates, 1000);
+            }
+        }
+
+        function animateTableRows() {
+            const rows = document.querySelectorAll('#results-table tbody tr');
+            rows.forEach((row, i) => {
+                row.classList.add('update-row');
+                setTimeout(() => row.classList.remove('update-row'), 800);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            animateTableRows();
+            checkForUpdates();
+        });
+    </script>
+</body>
+</html>

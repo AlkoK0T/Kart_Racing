@@ -12,7 +12,7 @@ last_update_time = 0
 def show_results():
     race_data = load_race_data(Config.DATA_FOLDER)  # Передаем папку явно
     
-    return render_template('results.html',
+    return render_template('results_alt.html',
                          current_race=race_data.get('current_race') if race_data else None,
                          best_laps=race_data.get('best_laps', []) if race_data else [],
                          top_pilots=race_data.get('top_pilots', []) if race_data else [],
