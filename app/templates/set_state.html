@@ -218,37 +218,42 @@
             btn.disabled = false;
             btn.innerHTML = originalText;
         }
+    function switchView(view, btnElement) {
+        const originalText = btnElement.textContent;
+        btnElement.disabled = true;
+        btnElement.innerHTML = '<span class="spinner"></span>Применение...';
 
-        function switchView(view, btnElement) {
-            const originalText = btnElement.textContent;
-            btnElement.disabled = true;
-            btnElement.innerHTML = '<span class="spinner"></span>Применение...';
+        // ✅ Передаём СТРОКУ: "style1" или "style2"
+        const viewMap = {
+            1: "style1",
+            2: "style2"
+        };
+        const viewStr = viewMap[view];
 
-            fetch('/state', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ view: view })
-            })
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                if (data.success || data.view === view) {
-                    showStatus(`Вид успешно установлен: «Вид ${view}»`, 'success');
-                } else {
-                    throw new Error(data.error || 'Неизвестная ошибка');
-                }
-            })
-            .catch(err => {
-                console.error('Ошибка:', err);
-                showStatus(`Не удалось установить вид ${view}: ${err.message}`, 'error');
-            })
-            .finally(() => {
-                // Восстанавливаем кнопку через короткую задержку для UX
-                setTimeout(() => resetButton(btnElement, originalText), 600);
-            });
-        }
+        fetch('/state', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ view: viewStr })  // ← "style1", а не 1
+        })
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            if (data.success || data.view === viewStr) {
+                showStatus(`✅ Вид успешно установлен: «${viewStr}»`, 'success');
+            } else {
+                throw new Error(data.error || 'Неизвестная ошибка');
+            }
+        })
+        .catch(err => {
+            console.error('Ошибка:', err);
+            showStatus(`❌ Не удалось установить вид: ${err.message}`, 'error');
+        })
+        .finally(() => {
+            setTimeout(() => resetButton(btnElement, originalText), 600);
+        });
+    }
     </script>
 </body>
 </html>

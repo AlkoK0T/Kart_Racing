@@ -1,393 +1,417 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Результаты заездов | Karting PRO</title>
-    <style>
-        :root {
-            --blood-red: #fe1e1e;
-            --light-green: #85ad3b;
-            --pure-black: #000000;
-            --coal-black: #121212;
-            --steel-gray: #1e1e1e; /* Цвет для чередования */
-            --smoke-gray: #4a4a4a;
-            --carbon-gray: #3c3c3c;/* Цвет для чередования */
-            --off-white: #f0f0f0;
-            --racing-green: #00cc44; /*Для лучших кругов */
-            --positive-green: #33cc33; /* Зеленый для положительной дельты */
-            --negative-red: #ff3333;   /* Красный для отрицательной дельты */
-            --neutral-gray: #888888;   /* Серый для нулевой дельты */
-            --orange: #ff0000;   /* Серый для нулевой дельты */
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Результаты заездов | Karting PRO</title>
+        <style>
+            :root {
+                --blood-red: #fe1e1e;
+                --light-green: #85ad3b;
+                --pure-black: #000000;
+                --coal-black: #121212;
+                --steel-gray: #1e1e1e; /* Цвет для чередования */
+                --smoke-gray: #4a4a4a;
+                --carbon-gray: #3c3c3c;/* Цвет для чередования */
+                --off-white: #f0f0f0;
+                --racing-green: #00cc44; /*Для лучших кругов */
+                --positive-green: #33cc33; /* Зеленый для положительной дельты */
+                --negative-red: #ff3333;   /* Красный для отрицательной дельты */
+                --neutral-gray: #888888;   /* Серый для нулевой дельты */
+                --orange: #ff0000;   /* Серый для нулевой дельты */
 
-        }
-        
-        body {
-            font-family: 'Rajdhani', 'Arial Narrow', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: var(--coal-black);
-            color: var(--off-white);
-            height: 100vh;
-            width: 100vw;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            background-image: 
-                linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
-                url('https://images.unsplash.com/photo-1593941707882-a5bbbf46e1a1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80');
-            background-size: cover;
-        }
-
-        header {
-            background: linear-gradient(to bottom, var(--pure-black), var(--coal-black));
-            border-bottom: 4px solid var(--blood-red);
-            padding: 1vh 0;
-            text-align: center;
-            position: relative;
-            flex-shrink: 0;
-            height: 12vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        header::before {
-            content: "";
-            position: absolute;
-            bottom: -12px;
-            left: 0;
-            right: 0;
-            height: 6px;
-            background: repeating-linear-gradient(
-                45deg,
-                transparent,
-                transparent 12px,
-                var(--blood-red) 12px,
-                var(--blood-red) 24px
-            );
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 5vh;
-            font-weight: 700;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: var(--blood-red);
-            text-shadow: 0 0 15px rgba(255, 50, 50, 0.7);
-            line-height: 1;
-        }
-
-        .table-container {
-            flex: 1;
-            padding: 3px;
-            box-sizing: border-box;
-            height: calc(100vh); /* Вычитаем высоту header и footer */
-            display: flex;
-            flex-direction: column;
-        }
-
-        .results-table {
-            width: 100%;
-            height: 100%;
-            border-collapse: collapse;
-            background-color: var(--steel-gray);
-            border: 3px solid var(--blood-red);
-            box-shadow: 0 0 20px rgba(255, 50, 50, 0.4);
-            table-layout: fixed;
-        }
-
-        .results-table th {
-            background: linear-gradient(to bottom, var(--pure-black), var(--carbon-gray));
-            color: var(--off-white);
-            padding: 1.5vh;
-            text-align: center;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            border: 2px solid var(--smoke-gray);
-            font-size: 4vh;
-            height: 6vh;
-        }
-
-        .results-table td {
-            padding: 1vh;
-            text-align: center;
-            border: 2px solid var(--smoke-gray);
-            font-weight: 600;
-            font-size: 2.8vh;
-            color: var(--off-white);
-            height: 3.2vh;
-        }
-
-        .results-table tr:nth-child(odd) {
-            background-color: rgba(42, 42, 42, 0.8);
-        }
-
-        .results-table tr:nth-child(even) {
-            background-color: rgba(51, 51, 51, 0.8);
-        }
-
-        .results-table tr.highlight-row {
-            background-color: var(--light-green) !important;
-            font-weight: 700;
-        }
-        
-        .results-table tr.position-row {
-            background-color: var(--blood-red) !important;
-            font-weight: 1000;
-        }
-
-        .results-table tr.position-row td {
-            font-size: 3.5vh;
-            font-weight: 900;
-        }
-
-        .results-table tr.delta-row {
-            background-color: var(--steel-gray) !important;
-            font-weight: 700;
-        }
-
-        .avg-row {
-            background-color: var(--steel-gray) !important;
-            font-weight: 700;
-        }
-
-        .results-table tr.legend-row {
-            background-color: var(--steel-gray) !important;
-            font-weight: 500;
-        }
-
-        .results-table tr.legend-row td {
-            font-size: 1vh;
-            height: 1.2vh;
-        }
-        
-        /* Стиль для лучшего времени в столбце */
-        .best-lap {
-            background-color: var(--racing-green) !important;
-            color: var(--pure-black) !important;
-            font-weight: 700;
-            box-shadow: 0 0 10px rgba(0, 204, 68, 0.5);
-        }
-
-        /* Стили для дельты */
-        .delta-positive {
-            color: var(--positive-green) !important;
-            font-weight: 700;
-        }
-        
-        .delta-negative {
-            color: var(--negative-red) !important;
-            font-weight: 700;
-        }
-        
-        .delta-neutral {
-            color: var(--neutral-gray) !important;
-            font-weight: 700;
-        }
-
-        .error-message {
-            text-align: center; 
-            padding: 3vh; 
-            color: var(--off-white); 
-            font-size: 4vh;
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
-        }
-
-        footer {
-            text-align: center;
-            padding: 0.5vh 0;
-            font-size: 1.8vh;
-            color: var(--smoke-gray);
-            background-color: rgba(0, 0, 0, 0.3);
-            position: relative;
-            z-index: 10;
-            opacity: 0.7;
-            transition: opacity 0.3s;
-            flex-shrink: 0;
-            height: 3vh;
-        }
-        
-        footer:hover {
-            opacity: 1;
-        }
-
-        /* Анимация плавного поднятия таблицы при обновлении */
-        @keyframes lift {
-            0% { transform: translateY(0); opacity: 1; }
-            50% { transform: translateY(-15px); opacity: 0.9; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-
-        .updated {
-            animation: lift 0.8s ease-in-out;
-        }
-
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
-<body>
-    {% if error_message %}
-        <div class="error-message">
-            {{ error_message }}
-        </div>
-    {% else %}
-        <div class="table-container">
-            <table class="results-table">
-                <thead>
-                    <tr>
-                        <th style="width: 5%;">LAPS</th>
-                        {% if current_race %}
-                            {% for kart in current_race.karts %}
-                                <th>{{ kart }}</th>
-                            {% endfor %}
-                        {% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if current_race %}
-                        {% set num_karts = current_race.karts | length %}
-                        {% set decimal_places = 2 if num_karts > 4 else 3 %}
-                        
-                        {% for lap_num in range(10 if current_race.max_time<10 else current_race.max_time)[-10:] %}
-                        <tr>
-                            <td>{{ lap_num + 1 }}</td>
-                            {% for kart in current_race.karts %}
-                                {% set lap_time = current_race.laps[kart][lap_num] | float if current_race.laps[kart][lap_num] %}
-                                {% set best_time = current_race.best_times[kart] | float %}
-                                <td class="{% if lap_time == best_time %}best-lap{% endif %}">
-                                    {% if lap_time %}
-                                        {{ "%.*f" | format(decimal_places, lap_time) }}
-                                    {% endif %}
-                                </td>
-                            {% endfor %}
-                        </tr>
-                        {% endfor %}
-                        
-                        <!-- Итоговые строки -->
-                        <!-- Строка дельты (последний круг относительно лучшего) -->
-                        <tr class="delta-row">
-                            <td>DIFF</td>
-                            {% for kart in current_race.karts %}
-                                {% set last_lap_time = current_race.laps[kart][-1] | float if current_race.laps[kart][-1] %}
-                                {% set prelast_lap_time = current_race.laps[kart][-2] | float if current_race.laps[kart][-2] %}
-                                {% if last_lap_time and prelast_lap_time %}
-                                    {% set delta = last_lap_time - prelast_lap_time %}
-                                    {% if delta > 0 %}
-                                        <td class="delta-negative">+{{ "%.*f" | format(decimal_places, delta) }}</td>
-                                    {% elif delta < 0 %}
-                                        <td class="delta-positive">{{ "%.*f" | format(decimal_places, delta) }}</td>
-                                    {% else %}
-                                        <td class="delta-neutral">0.{{ "0" * decimal_places }}</td>
-                                    {% endif %}
-                                {% else %}
-                                    <td>-</td>
-                                {% endif %}
-                            {% endfor %}
-                        </tr>
-                        <tr class="highlight-row">
-                            <td>BEST</td>
-                            {% for kart in current_race.karts %}
-                                <td>{{ "%.*f" | format(decimal_places, current_race.best_times[kart]) }}</td>
-                            {% endfor %}
-                        </tr>
-                        <tr class="avg-row">
-                            <td>AVG</td>
-                            {% for kart in current_race.karts %}
-                                <td>{{ "%.*f" | format(decimal_places, current_race.avg_times[kart]) }}</td>
-                            {% endfor %}
-                        </tr>
-                        
-                        
-                        <tr class="position-row">
-                            <td>BEST DIFF</td>
-                            {% for kart in current_race.karts %}
-                                <td>{{ "%.*f" | format(decimal_places, current_race.time_deltas[kart] | float) }}</td>
-                            {% endfor %}
-                        </tr>
-                        <tr class="legend-row">
-                            <td colspan="{{current_race.karts | length + 1 }}">Л-ЛУЧШИЙ С-СРЕДНИЙ М-МЕСТО Δ-ДЕЛЬТА (ПОСЛЕДНИЙ КРУГ ОТНОСИТЕЛЬНО ЛУЧШЕГО)</td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="100%">Нет данных</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
-    
-    <footer>
-        Обновлено: {{ last_updated }}
-    </footer>
-    
-    <script>
-        // Глобальная переменная для хранения времени последнего обновления
-        let lastUpdateTime = "{{ last_updated }}";
-        
-        // Функция для проверки обновлений
-        function checkForUpdates() {
-            fetch('/check-updates')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        console.error('Ошибка при проверке обновлений:', data.error);
-                        setTimeout(checkForUpdates, 10000);
-                        return;
-                    }
-                    
-                    // Сравниваем время с предыдущим значением
-                    if (data.last_updated !== lastUpdateTime) {
-                        console.log('Обнаружены новые данные!', {
-                            'старое время': lastUpdateTime,
-                            'новое время': data.last_updated
-                        });
-                        
-                        // Обновляем глобальную переменную
-                        lastUpdateTime = data.last_updated;
-                        
-                        // Добавляем анимацию обновления
-                        document.querySelectorAll('tr').forEach(row => {
-                            row.classList.add('updated');
-                            setTimeout(() => row.classList.remove('updated'), 1000);
-                        });
-                        
-                        // Перезагружаем страницу через секунду
-                        setTimeout(() => location.reload(), 1000);
-                    } else {
-                        // Если обновлений нет, проверяем снова через заданное время
-                        console.log('Обновлений нет, проверяем снова...');
-                        setTimeout(checkForUpdates, сurrent_race.UPD_TIME); // 5 секунд
-                    }
-                })
-                .catch(error => {
-                    console.error('Ошибка проверки обновлений:', error);
-                    setTimeout(checkForUpdates, 10000); // 10 секунд при ошибке
-                });
-        }
-        
-        // Запускаем проверку обновлений при загрузке страницы
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Начало отслеживания обновлений. Время последнего обновления:', lastUpdateTime);
-            setTimeout(checkForUpdates, 5000);
-            
-            // Адаптация размера шрифта при необходимости
-            function adjustFontSize() {
-                const header = document.querySelector('header');
-                if (header.scrollHeight > header.offsetHeight) {
-                    const h1 = document.querySelector('header h1');
-                    const currentSize = parseFloat(window.getComputedStyle(h1).fontSize);
-                    h1.style.fontSize = (currentSize - 1) + 'px';
-                }
             }
             
-            adjustFontSize();
-        });
-    </script>
-</body>
-</html>
+            body {
+                font-family: 'Rajdhani', 'Arial Narrow', sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: var(--coal-black);
+                color: var(--off-white);
+                height: 100vh;
+                width: 100vw;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                background-image: 
+                    linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+                    url('https://images.unsplash.com/photo-1593941707882-a5bbbf46e1a1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80');
+                background-size: cover;
+            }
+
+            header {
+                background: linear-gradient(to bottom, var(--pure-black), var(--coal-black));
+                border-bottom: 4px solid var(--blood-red);
+                padding: 1vh 0;
+                text-align: center;
+                position: relative;
+                flex-shrink: 0;
+                height: 12vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+
+            header::before {
+                content: "";
+                position: absolute;
+                bottom: -12px;
+                left: 0;
+                right: 0;
+                height: 6px;
+                background: repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 12px,
+                    var(--blood-red) 12px,
+                    var(--blood-red) 24px
+                );
+            }
+
+            header h1 {
+                margin: 0;
+                font-size: 5vh;
+                font-weight: 700;
+                letter-spacing: 3px;
+                text-transform: uppercase;
+                color: var(--blood-red);
+                text-shadow: 0 0 15px rgba(255, 50, 50, 0.7);
+                line-height: 1;
+            }
+
+            .table-container {
+                flex: 1;
+                padding: 3px;
+                box-sizing: border-box;
+                height: calc(100vh); /* Вычитаем высоту header и footer */
+                display: flex;
+                flex-direction: column;
+            }
+
+            .results-table {
+                width: 100%;
+                height: 100%;
+                border-collapse: collapse;
+                background-color: var(--steel-gray);
+                border: 3px solid var(--blood-red);
+                box-shadow: 0 0 20px rgba(255, 50, 50, 0.4);
+                table-layout: fixed;
+            }
+
+            .results-table th {
+                background: linear-gradient(to bottom, var(--pure-black), var(--carbon-gray));
+                color: var(--off-white);
+                padding: 1.5vh;
+                text-align: center;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+                border: 2px solid var(--smoke-gray);
+                font-size: 4vh;
+                height: 6vh;
+            }
+
+            .results-table td {
+                padding: 1vh;
+                text-align: center;
+                border: 2px solid var(--smoke-gray);
+                font-weight: 600;
+                font-size: 2.8vh;
+                color: var(--off-white);
+                height: 3.2vh;
+            }
+
+            .results-table tr:nth-child(odd) {
+                background-color: rgba(42, 42, 42, 0.8);
+            }
+
+            .results-table tr:nth-child(even) {
+                background-color: rgba(51, 51, 51, 0.8);
+            }
+
+            .results-table tr.highlight-row {
+                background-color: var(--light-green) !important;
+                font-weight: 700;
+            }
+            
+            .results-table tr.position-row {
+                background-color: var(--blood-red) !important;
+                font-weight: 1000;
+            }
+
+            .results-table tr.position-row td {
+                font-size: 3.5vh;
+                font-weight: 900;
+            }
+
+            .results-table tr.delta-row {
+                background-color: var(--steel-gray) !important;
+                font-weight: 700;
+            }
+
+            .avg-row {
+                background-color: var(--steel-gray) !important;
+                font-weight: 700;
+            }
+
+            .results-table tr.legend-row {
+                background-color: var(--steel-gray) !important;
+                font-weight: 500;
+            }
+
+            .results-table tr.legend-row td {
+                font-size: 1vh;
+                height: 1.2vh;
+            }
+            
+            /* Стиль для лучшего времени в столбце */
+            .best-lap {
+                background-color: var(--racing-green) !important;
+                color: var(--pure-black) !important;
+                font-weight: 700;
+                box-shadow: 0 0 10px rgba(0, 204, 68, 0.5);
+            }
+
+            /* Стили для дельты */
+            .delta-positive {
+                color: var(--positive-green) !important;
+                font-weight: 700;
+            }
+            
+            .delta-negative {
+                color: var(--negative-red) !important;
+                font-weight: 700;
+            }
+            
+            .delta-neutral {
+                color: var(--neutral-gray) !important;
+                font-weight: 700;
+            }
+
+            .error-message {
+                text-align: center; 
+                padding: 3vh; 
+                color: var(--off-white); 
+                font-size: 4vh;
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+            }
+
+            footer {
+                text-align: center;
+                padding: 0.5vh 0;
+                font-size: 1.8vh;
+                color: var(--smoke-gray);
+                background-color: rgba(0, 0, 0, 0.3);
+                position: relative;
+                z-index: 10;
+                opacity: 0.7;
+                transition: opacity 0.3s;
+                flex-shrink: 0;
+                height: 3vh;
+            }
+            
+            footer:hover {
+                opacity: 1;
+            }
+
+            /* Анимация плавного поднятия таблицы при обновлении */
+            @keyframes lift {
+                0% { transform: translateY(0); opacity: 1; }
+                50% { transform: translateY(-15px); opacity: 0.9; }
+                100% { transform: translateY(0); opacity: 1; }
+            }
+
+            .updated {
+                animation: lift 0.8s ease-in-out;
+            }
+
+        </style>
+        <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        {% if error_message %}
+            <div class="error-message">
+                {{ error_message }}
+            </div>
+        {% else %}
+            <div class="table-container">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">LAPS</th>
+                            {% if current_race %}
+                                {% for kart in current_race.karts %}
+                                    <th>{{ kart }}</th>
+                                {% endfor %}
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if current_race %}
+                            {% set num_karts = current_race.karts | length %}
+                            {% set decimal_places = 2 if num_karts > 4 else 3 %}
+                            
+                            {% for lap_num in range(10 if current_race.max_time<10 else current_race.max_time)[-10:] %}
+                            <tr>
+                                <td>{{ lap_num + 1 }}</td>
+                                {% for kart in current_race.karts %}
+                                    {% set lap_time = current_race.laps[kart][lap_num] | float if current_race.laps[kart][lap_num] %}
+                                    {% set best_time = current_race.best_times[kart] | float %}
+                                    <td class="{% if lap_time == best_time %}best-lap{% endif %}">
+                                        {% if lap_time %}
+                                            {{ "%.*f" | format(decimal_places, lap_time) }}
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                            
+                            <!-- Итоговые строки -->
+                            <!-- Строка дельты (последний круг относительно лучшего) -->
+                            <tr class="delta-row">
+                                <td>DIFF</td>
+                                {% for kart in current_race.karts %}
+                                    {% set last_lap_time = current_race.laps[kart][-1] | float if current_race.laps[kart][-1] %}
+                                    {% set prelast_lap_time = current_race.laps[kart][-2] | float if current_race.laps[kart][-2] %}
+                                    {% if last_lap_time and prelast_lap_time %}
+                                        {% set delta = last_lap_time - prelast_lap_time %}
+                                        {% if delta > 0 %}
+                                            <td class="delta-negative">+{{ "%.*f" | format(decimal_places, delta) }}</td>
+                                        {% elif delta < 0 %}
+                                            <td class="delta-positive">{{ "%.*f" | format(decimal_places, delta) }}</td>
+                                        {% else %}
+                                            <td class="delta-neutral">0.{{ "0" * decimal_places }}</td>
+                                        {% endif %}
+                                    {% else %}
+                                        <td>-</td>
+                                    {% endif %}
+                                {% endfor %}
+                            </tr>
+                            <tr class="highlight-row">
+                                <td>BEST</td>
+                                {% for kart in current_race.karts %}
+                                    <td>{{ "%.*f" | format(decimal_places, current_race.best_times[kart]) }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr class="avg-row">
+                                <td>AVG</td>
+                                {% for kart in current_race.karts %}
+                                    <td>{{ "%.*f" | format(decimal_places, current_race.avg_times[kart]) }}</td>
+                                {% endfor %}
+                            </tr>
+                            
+                            
+                            <tr class="position-row">
+                                <td>BEST DIFF</td>
+                                {% for kart in current_race.karts %}
+                                    <td>{{ "%.*f" | format(decimal_places, current_race.time_deltas[kart] | float) }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr class="legend-row">
+                                <td colspan="{{current_race.karts | length + 1 }}">Л-ЛУЧШИЙ С-СРЕДНИЙ М-МЕСТО Δ-ДЕЛЬТА (ПОСЛЕДНИЙ КРУГ ОТНОСИТЕЛЬНО ЛУЧШЕГО)</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="100%">Нет данных</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+        
+        <footer>
+            Обновлено: {{ last_updated }}
+        </footer>
+        <script>
+            let currentView = "{{ current_view }}";
+
+            let lastUpdateTime = "{{ last_updated }}";
+
+            // Опрос новых данных
+            function checkForUpdates() {
+                fetch('/check-updates')
+                    .then(response => {
+                        if (!response.ok) throw new Error('HTTP ' + response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.updated) {
+                            console.log('🔄 Данные обновлены:', data);
+                            lastUpdateTime = data.iso_time || new Date().toISOString();
+
+                            // Анимация
+                            document.querySelectorAll('tr').forEach(row => {
+                                row.classList.add('updated');
+                                setTimeout(() => row.classList.remove('updated'), 800);
+                            });
+
+                            setTimeout(() => location.reload(), 800);
+                        }
+                        setTimeout(checkForUpdates, сurrent_race.UPD_TIME);
+                    })
+                    .catch(err => {
+                        console.warn('Ошибка /check-updates:', err);
+                        setTimeout(checkForUpdates, 10000);
+                    });
+            }
+
+            // Опрос смены ВИДА (/state)
+            function checkViewState() {
+                fetch('/state')
+                    .then(response => {
+                        if (!response.ok) throw new Error('HTTP ' + response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Сравниваем ЧИСЛА: currentView (число) vs data.view (число)
+                        if (data.view !== currentView) {
+                            console.log(`Вид изменился: ${currentView} → ${data.view}`);
+                            currentView = data.view;
+
+                            // Анимация + перезагрузка
+                            document.body.style.animation = 'viewChangeFlash 1s';
+                            setTimeout(() => location.reload(), 800);
+                        }
+                        setTimeout(checkViewState, сurrent_race.UPD_TIME);
+                    })
+                    .catch(err => {
+                        console.warn('Ошибка /state:', err);
+                        setTimeout(checkViewState, 5000);
+                    });
+            }
+
+            // Добавляем анимацию вспышки при смене вида
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes viewChangeFlash {
+                    0% { background-color: rgba(255, 202, 40, 0.2); }
+                    100% { background-color: transparent; }
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Запуск при загрузке
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('Запущен опрос');
+                checkForUpdates();
+                checkViewState();
+
+                // Адаптация шрифта (оставим как есть)
+                function adjustFontSize() {
+                    const header = document.querySelector('header');
+                    if (header && header.scrollHeight > header.offsetHeight) {
+                        const h1 = document.querySelector('header h1');
+                        if (h1) {
+                            const size = parseFloat(getComputedStyle(h1).fontSize);
+                            h1.style.fontSize = (size - 1) + 'px';
+                        }
+                    }
+                }
+                adjustFontSize();
+            });
+        </script>
+        </body>
+    </html>
