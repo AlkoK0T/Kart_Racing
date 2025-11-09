@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление отображением</title>
+    <style>
+        :root {
+            --blood-red: #fe1e1e;
+            --light-green: #85ad3b;
+            --black: #000;
+            --gray: #1a1a1a;
+            --coal-black: #121212;
+            --white: #f7f7f7;
+            --accent: #ffca28;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Rajdhani', Arial, sans-serif;
+            background: var(--coal-black);
+            color: var(--white);
+            padding: 2rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        header {
+            margin-bottom: 2.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--blood-red);
+        }
+        h1 {
+            font-size: 2.4rem;
+            color: var(--blood-red);
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            color: #aaa;
+            font-size: 1.1rem;
+        }
+        .views {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        .view-card {
+            background: var(--gray);
+            border: 2px solid var(--steel-gray, #2a2a2a);
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: left;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+        .view-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+        .view-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .view-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+        }
+        .view-desc {
+            color: #ccc;
+            margin: 0.5rem 0;
+        }
+        .preview {
+            background: #111;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            white-space: pre;
+            overflow: auto;
+            max-height: 120px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        .btn-view1 {
+            background: #2a2a2a;
+            color: white;
+        }
+        .btn-view2 {
+            background: var(--blood-red);
+            color: white;
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            margin-top: 1.5rem;
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            font-weight: bold;
+            display: none;
+            animation: fadeIn 0.4s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .status.success { background: rgba(133, 173, 59, 0.2); color: var(--light-green); display: block; }
+        .status.error { background: rgba(254, 30, 30, 0.2); color: var(--blood-red); display: block; }
+        .back-link {
+            margin-top: 2rem;
+            display: inline-block;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Управление отображением</h1>
+            <p class="subtitle">Выберите предпочитаемый формат отображения результатов заездов</p>
+        </header>
+
+        <div class="views">
+            <div class="view-card">
+                <div class="view-header">
+                    <div>
+                        <div class="view-title">Вид 1 — Наш</div>
+                        <div class="view-desc">Полноэкранный режим, акцент на кругах</div>
+                    </div>
+                    <button class="btn btn-view1" onclick="switchView(1, this)">Выбрать</button>
+                </div>
+                <div class="preview">
+<table class=&quot;results-table&quot;>
+  <tr><th>LAPS</th><th>12</th><th>25</th></tr>
+  <tr><td>1</td><td>45.231</td><td>45.521</td></tr>
+  <tr class=&quot;highlight-row&quot;>
+    <td>BEST</td><td>44.650</td><td>45.011</td>
+  </tr>
+</table>
+                </div>
+            </div>
+
+            <div class="view-card">
+                <div class="view-header">
+                    <div>
+                        <div class="view-title">Вид 2 — Вражеский</div>
+                        <div class="view-desc">Компактная таблица: позиция, номер, времена, дельты</div>
+                    </div>
+                    <button class="btn btn-view2" onclick="switchView(2, this)">Выбрать</button>
+                </div>
+                <div class="preview">
+<table>
+  <tr><th>POS</th><th>NUM</th><th>BEST</th><th>DIFF</th></tr>
+  <tr><td>1</td><td>99</td><td>44.100</td><td>-0.110</td></tr>
+  <tr><td>2</td><td>12</td><td>44.650</td><td>-0.341</td></tr>
+</table>
+                </div>
+            </div>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <a href="/" class="back-link">← Вернуться к результатам</a>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'success') {
+            const el = document.getElementById('status');
+            el.textContent = message;
+            el.className = 'status ' + type;
+            setTimeout(() => {
+                el.className = 'status';
+            }, 5000);
+        }
+
+        function resetButton(btn, originalText = 'Выбрать') {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+
+        function switchView(view, btnElement) {
+            const originalText = btnElement.textContent;
+            btnElement.disabled = true;
+            btnElement.innerHTML = '<span class="spinner"></span>Применение...';
+
+            fetch('/state', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ view: view })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                if (data.success || data.view === view) {
+                    showStatus(`Вид успешно установлен: «Вид ${view}»`, 'success');
+                } else {
+                    throw new Error(data.error || 'Неизвестная ошибка');
+                }
+            })
+            .catch(err => {
+                console.error('Ошибка:', err);
+                showStatus(`Не удалось установить вид ${view}: ${err.message}`, 'error');
+            })
+            .finally(() => {
+                // Восстанавливаем кнопку через короткую задержку для UX
+                setTimeout(() => resetButton(btnElement, originalText), 600);
+            });
+        }
+    </script>
+</body>
+</html>
