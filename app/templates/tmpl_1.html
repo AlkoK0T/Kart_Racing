@@ -1,0 +1,21 @@
+<div class="table-title">{{ table.title }}</div>
+
+<table class="styled-table">
+    <thead>
+        <tr>
+            {% for h in table.headers %}
+                <th>{{ h }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for idx, row in table.rows.items() %}
+            <tr>
+                {% for cell in row %}
+                    <td>{{ cell }}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

@@ -1,0 +1,25 @@
+<div class="table-title">{{ table.title }}</div>
+
+<table class="styled-table" style="width: 100%; border-collapse: collapse; table-layout: fixed; border: 2px solid var(--blood-red);">
+    <thead>
+        <tr>
+            {% for h in table.headers %}
+                <th style="border: 1px solid var(--blood-red); padding: 8px; text-align: center; background-color: var(--carbon-gray);">
+                    {{ h }}
+                </th>
+            {% endfor %}
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for idx, row in table.rows.items() %}
+            <tr style="background-color: {% if loop.index0 % 2 == 0 %}rgba(42,42,42,0.8){% else %}rgba(51,51,51,0.8){% endif %};">
+                {% for cell in row %}
+                    <td style="border: 1px solid var(--blood-red); padding: 6px; text-align: center; color: var(--off-white);">
+                        {{ cell }}
+                    </td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

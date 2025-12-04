@@ -33,10 +33,10 @@ def load_race_data(data_folder=Config.DATA_FOLDER):
 
         for filename in sorted_files:
             filepath = os.path.join(data_folder, filename)
-            with open(filepath, 'r', encoding='cp1251', errors='ignore') as f:
+            with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 data = yaml.safe_load(f)
 
-            if not current_race and 'laps' in data and isinstance(data['laps'], dict):
+            if not current_race and 'laps' in data and isinstance(data['laps'], dict) and filename!="table":
                 laps = data['laps']
                 karts = list(laps.keys())
 
@@ -92,11 +92,17 @@ def load_race_data(data_folder=Config.DATA_FOLDER):
                     'UPD_TIME': Config.UPDATE_TIME,
                     'type': 'current_race'
                 }
+                return {
+                    'current_race': current_race,
+                    'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'style' : 'laps' if filename=='laps.yaml' else 'race'
+                }
+            else:
+                tables = list(data.values())
+                return tables
 
-        return {
-            'current_race': current_race,
-            'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
+
+
 
     except Exception as e:
         print(f"Ошибка при загрузке данных: {e}")

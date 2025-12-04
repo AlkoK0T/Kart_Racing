@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Заезды</title>
+
+    <style>
+        :root {
+            --blood-red: #fe1e1e;
+            --light-green: #85ad3b;
+            --pure-black: #000000;
+            --coal-black: #121212;
+            --steel-gray: #1e1e1e;
+            --smoke-gray: #4a4a4a;
+            --carbon-gray: #3c3c3c;
+            --off-white: #f0f0f0;
+        }
+
+        body {
+            font-family: 'Rajdhani', 'Arial Narrow', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--coal-black);
+            color: var(--off-white);
+            min-height: 100vh;
+
+            background-image:
+                linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+                url('https://images.unsplash.com/photo-1593941707882-a5bbbf46e1a1?auto=format&fit=crop&w=1350&q=80');
+            background-size: cover;
+        }
+
+        header {
+            background: linear-gradient(to bottom, var(--pure-black), var(--coal-black));
+            border-bottom: 4px solid var(--blood-red);
+            padding: 2vh 0;
+            text-align: center;
+            position: relative;
+        }
+
+        header::before {
+            content: "";
+            position: absolute;
+            bottom: -12px;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 12px,
+                var(--blood-red) 12px,
+                var(--blood-red) 24px
+            );
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 4.5vh;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--blood-red);
+            text-shadow: 0 0 15px rgba(255, 50, 50, 0.7);
+        }
+
+        .content {
+            padding: 2vh 2vw;
+        }
+
+        .table-block {
+            margin-bottom: 4vh;
+            padding: 2vh;
+            background-color: rgba(30, 30, 30, 0.85);
+            border: 3px solid var(--blood-red);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 50, 50, 0.3);
+        }
+
+        footer {
+            text-align: center;
+            padding: 1vh 0;
+            font-size: 1.8vh;
+            opacity: .7;
+            color: var(--smoke-gray);
+        }
+    </style>
+
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<header>
+    <h1>Таблицы отчёта</h1>
+</header>
+
+<div class="content">
+
+    {% if tables %}
+        {% for table in tables %}
+            <div class="table-block">
+                {% include table.template ~ ".html" ignore missing %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <h2 style="text-align:center; color:var(--blood-red);">
+            Нет данных для отображения
+        </h2>
+    {% endif %}
+
+</div>
+</body>
+</html>

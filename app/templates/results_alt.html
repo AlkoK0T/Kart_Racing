@@ -36,11 +36,10 @@
         header {
             background: linear-gradient(to bottom, var(--pure-black), var(--coal-black));
             border-bottom: 4px solid var(--blood-red);
-            padding: 1vh 0;
             text-align: center;
             position: relative;
             flex-shrink: 0;
-            height: 12vh;
+            height: 9vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -64,146 +63,161 @@
 
         header h1 {
             margin: 0;
-            font-size: 5vh;
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
             font-weight: 700;
-            letter-spacing: 3px;
+            letter-spacing: 1.2px;
             text-transform: uppercase;
             color: var(--blood-red);
-            text-shadow: 0 0 15px rgba(255, 50, 50, 0.7);
+            text-shadow: 0 0 8px rgba(255, 50, 50, 0.7);
             line-height: 1;
         }
 
         .table-container {
             flex: 1;
-            padding: 1.5rem;
+            padding: 0.5rem;
             box-sizing: border-box;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
         }
 
-        .results-table {
-            width: 100%;
-            height: 100%;
-            border-collapse: collapse;
-            background-color: var(--steel-gray);
+        /* ——— GRID ——— */
+        .grid-table {
+            display: grid;
+            --data-row-height: calc((100vh - 9vh - 3vh - 1rem) / 8);
+            --header-row-height: calc(var(--data-row-height) * 0.5);
+            grid-template-rows: var(--header-row-height) repeat(auto-fill, var(--data-row-height));
+            grid-template-columns: 
+                minmax(60px, 0.8fr)   /* POS */
+                minmax(60px, 0.8fr)   /* NUM */
+                minmax(90px, 1.2fr)   /* BEST LAP */
+                minmax(90px, 1.2fr)   /* LAST LAP */
+                minmax(100px, 1.3fr)  /* TOTAL TIME */
+                minmax(60px, 0.8fr)   /* LAPS */
+                minmax(80px, 1fr)     /* DIFF */
+                minmax(80px, 1fr);    /* GAP */
             border: 3px solid var(--blood-red);
+            background-color: var(--steel-gray);
             box-shadow: 0 0 20px rgba(255, 50, 50, 0.4);
-            table-layout: fixed;
-            font-size: 1.4rem;
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex: 1;
         }
 
-        .results-table th {
+        .grid-header,
+        .grid-row {
+            display: contents;
+        }
+
+        /* Общая ячейка */
+        .cell {
+            border: 2px solid var(--smoke-gray);
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 0.2rem 0.3rem;
+            box-sizing: border-box;
+            line-height: 1;
+        }
+
+        /* Заголовок — маленький */
+        .grid-header > .cell {
             background: linear-gradient(to bottom, var(--pure-black), var(--carbon-gray));
             color: var(--off-white);
-            padding: 1rem;
-            text-align: center;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            border: 2px solid var(--smoke-gray);
+            letter-spacing: 0.4px;
+            font-size: clamp(1.2rem, 2.4vw, 1.9rem);
+            padding: 0.15rem 0.3rem;
         }
 
-        .results-table td {
-            padding: 1rem;
-            text-align: center;
-            border: 2px solid var(--smoke-gray);
-            font-weight: 600;
-            color: var(--off-white);
-        }
-
-        .results-table tr:nth-child(odd) {
-            background-color: rgba(42, 42, 42, 0.8);
-        }
-
-        .results-table tr:nth-child(even) {
-            background-color: rgba(51, 51, 51, 0.8);
-        }
-
-        .results-table tr:hover {
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        /* Стили для дельты */
-        .delta-positive {
-            color: var(--positive-green) !important;
+        /* Данные — ОГРОМНЫЙ шрифт + центрирование */
+        .grid-row > .cell {
             font-weight: 700;
-        }
-        
-        .delta-negative {
-            color: var(--negative-red) !important;
-            font-weight: 700;
-        }
-        
-        .delta-neutral {
-            color: var(--neutral-gray) !important;
-            font-weight: 700;
+            font-size: clamp(1.6rem, 3.3vw, 2.7rem); /* ← в ~3 раза крупнее */
         }
 
+        .grid-row:nth-child(odd) > .cell {
+            background-color: rgba(42, 42, 42, 0.85);
+        }
+
+        .grid-row:nth-child(even) > .cell {
+            background-color: rgba(51, 51, 51, 0.85);
+        }
+
+        .grid-row:hover > .cell {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .grid-row.leader > .cell {
+            background: var(--carbon-gray) !important;
+            font-weight: 800;
+        }
+
+        /* Цвета дельты — жирные и яркие */
+        .delta-positive { color: var(--positive-green) !important; }
+        .delta-negative { color: var(--negative-red)   !important; }
+        .delta-neutral   { color: var(--neutral-gray)   !important; }
+
+        /* Footer & Error */
         .error-message {
-            text-align: center; 
-            padding: 3vh; 
-            color: var(--off-white); 
-            font-size: 4vh;
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+            padding: 1.5rem;
+            text-align: center;
+            font-size: clamp(2rem, 6vw, 3.2rem);
+            color: var(--off-white);
+            text-shadow: 0 0 12px rgba(0,0,0,0.7);
         }
 
         footer {
-            text-align: center;
-            padding: 0.5vh 0;
-            font-size: 1.8vh;
-            color: var(--smoke-gray);
-            background-color: rgba(0, 0, 0, 0.3);
-            position: relative;
-            z-index: 10;
-            opacity: 0.7;
-            transition: opacity 0.3s;
             flex-shrink: 0;
             height: 3vh;
+            text-align: center;
+            padding: 0.2rem 0;
+            font-size: clamp(0.6rem, 1.2vw, 0.8rem);
+            color: var(--smoke-gray);
+            background-color: rgba(0,0,0,0.35);
+            opacity: 0.7;
+            transition: opacity 0.3s;
         }
-        
-        footer:hover {
-            opacity: 1;
-        }
+        footer:hover { opacity: 1; }
 
         /* Анимации */
         @keyframes lift {
-            0% { transform: translateY(0); opacity: 1; }
-            50% { transform: translateY(-15px); opacity: 0.9; }
-            100% { transform: translateY(0); opacity: 1; }
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
         }
-
         .updated {
-            animation: lift 0.8s ease-in-out;
+            animation: lift 0.5s ease-out;
         }
 
         .spinner {
             display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,0.2);
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.2);
             border-top-color: var(--light-green);
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-right: 8px;
+            margin-right: 5px;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         #loading-indicator {
             display: none;
-            text-align: center;
-            padding: 0.5rem;
             color: var(--light-green);
-            font-size: 1.2rem;
+            font-size: 0.9rem;
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     {% if error_message %}
@@ -212,42 +226,40 @@
         </div>
     {% else %}
         <div class="table-container">
-            <table class="results-table" id="results-table">
-                <thead>
-                    <tr>
-                        <th>POS</th>
-                        <th>NUM</th>
-                        <th>BEST LAP</th>
-                        <th>LAST LAP</th>
-                        <th>TOTAL TIME</th>
-                        <th>LAPS</th>
-                        <th>DIFF</th>
-                        <th>GAP</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for kart in current_race.karts %}
-                    <tr {% if current_race.positions[kart] == 1 %} style="background: var(--carbon-gray); font-weight: bold;" {% endif %}>
-                        <td>{{ current_race.positions[kart] }}</td>
-                        <td>{{ kart }}</td>
-                        <td>{{ "%.3f"|format(current_race.best_times[kart]) }}</td>
-                        <td>{{ "%.3f"|format(current_race.last_laps[kart]) }}</td>
-                        <td>{{ "%.3f"|format(current_race.total_time[kart]) }}</td>
-                        <td>{{ current_race.total_laps[kart] }}</td>
-                        <td class="
-                            {% if current_race.diff[kart] < 0 %}delta-positive
-                            {% elif current_race.diff[kart] > 0 %}delta-negative
-                            {% else %}delta-neutral{% endif %}">
-                            {{ "%+.3f"|format(current_race.diff[kart]) }}
-                        </td>
-                        <td>{{ "%.3f"|format(current_race.time_deltas[kart]) }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="grid-table" id="results-table">
+                <!-- Заголовок -->
+                <div class="grid-header">
+                    <div class="cell">POS</div>
+                    <div class="cell">NUM</div>
+                    <div class="cell">BEST LAP</div>
+                    <div class="cell">LAST LAP</div>
+                    <div class="cell">TOTAL TIME</div>
+                    <div class="cell">LAPS</div>
+                    <div class="cell">DIFF</div>
+                    <div class="cell">GAP</div>
+                </div>
+
+                <!-- Данные -->
+                {% for kart in current_race.karts %}
+                <div class="grid-row {% if current_race.positions[kart] == 1 %}leader{% endif %}">
+                    <div class="cell">{{ current_race.positions[kart] }}</div>
+                    <div class="cell">{{ kart }}</div>
+                    <div class="cell">{{ "%.3f"|format(current_race.best_times[kart]) }}</div>
+                    <div class="cell">{{ "%.3f"|format(current_race.last_laps[kart]) }}</div>
+                    <div class="cell">{{ "%.3f"|format(current_race.total_time[kart]) }}</div>
+                    <div class="cell">{{ current_race.total_laps[kart] }}</div>
+                    <div class="cell {% if current_race.diff[kart] < 0 %}delta-positive
+                        {% elif current_race.diff[kart] > 0 %}delta-negative
+                        {% else %}delta-neutral{% endif %}">
+                        {{ "%+.3f"|format(current_race.diff[kart]) }}
+                    </div>
+                    <div class="cell">{{ "%.3f"|format(current_race.time_deltas[kart]) }}</div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     {% endif %}
-    
+
     <footer>
         Обновлено: <span id="last-update">{{ last_updated }}</span>
         <div id="loading-indicator">

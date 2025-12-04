@@ -9,7 +9,7 @@ import threading
 
 # Глобальная переменная для хранения времени последнего изменения и текущего вида
 last_update_time = 0
-current_view = "style1"
+current_view = "laps"
 view_lock = threading.Lock()
 
 @app.route('/')
@@ -17,8 +17,10 @@ def show_results():
     global current_view
 
     race_data = load_race_data(Config.DATA_FOLDER)  # Передаем папку явно
+
+    current_view = race_data.get('style') if not(isinstance(race_data, list)) else "base"
     match current_view:
-        case "style1":
+        case "laps":
             return render_template('results.html',
                                 current_race=race_data.get('current_race') if race_data else None,
                                 best_laps=race_data.get('best_laps', []) if race_data else [],
@@ -26,7 +28,7 @@ def show_results():
                                 last_updated=race_data.get('last_updated', datetime.now().strftime('%Y-%m-%d %H:%M:%S')) if race_data else datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 current_view=current_view,
                                 error_message="Данные заездов не найдены" if race_data is None else None)
-        case "style2":
+        case "race":
             return render_template('results_alt.html',
                                 current_race=race_data.get('current_race') if race_data else None,
                                 best_laps=race_data.get('best_laps', []) if race_data else [],
@@ -34,6 +36,9 @@ def show_results():
                                 last_updated=race_data.get('last_updated', datetime.now().strftime('%Y-%m-%d %H:%M:%S')) if race_data else datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 current_view=current_view,
                                 error_message="Данные заездов не найдены" if race_data is None else None)
+        case "base":
+            return render_template("laps_champ.html", tables=race_data)
+        
                        
 
 @app.route('/check-updates')
@@ -59,7 +64,7 @@ def state():
     global current_view
     if request.method == 'GET':
         with view_lock:
-            return jsonify({'view': current_view})  # → "style1"
+            return jsonify({'view': current_view})  # → "laps"
 
     elif request.method == 'PUT':
         try:
@@ -69,8 +74,8 @@ def state():
 
             new_view = data.get('view')
             # Допустимые значения — строки
-            if new_view not in ("style1", "style2"):
-                return jsonify({'error': 'view must be "style1" or "style2"'}), 400
+            if new_view not in ("laps", "race"):
+                return jsonify({'error': 'view must be "laps" or "race"'}), 400
 
             with view_lock:
                 current_view = new_view
