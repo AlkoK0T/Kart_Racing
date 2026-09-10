@@ -9,37 +9,43 @@ import threading
 
 # Глобальная переменная для хранения времени последнего изменения и текущего вида
 last_update_time = 0
+current_subview = "style1"
 current_view = "laps"
 view_lock = threading.Lock()
 
 @app.route('/')
 def show_results():
     global current_view
+    global current_subview
 
     race_data = load_race_data(Config.DATA_FOLDER)  # Передаем папку явно
 
     current_view = race_data.get('style') if not(isinstance(race_data, list)) else "base"
-    match current_view:
-        case "laps":
-            return render_template('results.html',
+    if current_view == "laps":
+            return render_template('results.html' if current_subview != "style2" else 'results_alt.html',
                                 current_race=race_data.get('current_race') if race_data else None,
                                 best_laps=race_data.get('best_laps', []) if race_data else [],
                                 top_pilots=race_data.get('top_pilots', []) if race_data else [],
                                 last_updated=race_data.get('last_updated', datetime.now().strftime('%Y-%m-%d %H:%M:%S')) if race_data else datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 current_view=current_view,
+                                current_subview=current_subview,
                                 error_message="Данные заездов не найдены" if race_data is None else None)
-        case "race":
-            return render_template('results_alt.html',
+    elif current_view == "race":
+            return render_template('v_race.html',
+                                header = "Гонка",
                                 current_race=race_data.get('current_race') if race_data else None,
                                 best_laps=race_data.get('best_laps', []) if race_data else [],
                                 top_pilots=race_data.get('top_pilots', []) if race_data else [],
                                 last_updated=race_data.get('last_updated', datetime.now().strftime('%Y-%m-%d %H:%M:%S')) if race_data else datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 current_view=current_view,
+                                data = race_data,
                                 error_message="Данные заездов не найдены" if race_data is None else None)
-        case "base":
+    if current_view == "base":
             return render_template("laps_champ.html", tables=race_data)
         
-                       
+    else:
+            return render_template("v_" + current_view + ".html", data=race_data)
+       
 
 @app.route('/check-updates')
 def check_updates():
@@ -62,9 +68,10 @@ def check_updates():
 @app.route('/state', methods=['GET', 'PUT'])
 def state():
     global current_view
+    global current_subview
     if request.method == 'GET':
         with view_lock:
-            return jsonify({'view': current_view})  # → "laps"
+            return jsonify({'view': current_subview})  # → "laps"
 
     elif request.method == 'PUT':
         try:
@@ -74,13 +81,13 @@ def state():
 
             new_view = data.get('view')
             # Допустимые значения — строки
-            if new_view not in ("laps", "race"):
-                return jsonify({'error': 'view must be "laps" or "race"'}), 400
+#            if new_view not in ("laps", "race"):
+#                return jsonify({'error': 'view must be "laps" or "race"'}), 400
 
             with view_lock:
-                current_view = new_view
+                current_subview = new_view
 
-            return jsonify({'success': True, 'view': current_view})
+            return jsonify({'success': True, 'view': current_subview})
 
         except Exception as e:
             return jsonify({'error': str(e)}), 400

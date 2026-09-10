@@ -107,14 +107,16 @@
                 text-transform: uppercase;
                 letter-spacing: 1.5px;
                 border: 2px solid var(--smoke-gray);
+                border-left: 0px;
                 font-size: 4vh;
                 height: 6vh;
             }
 
             .results-table td {
-                padding: 1vh;
+                padding: 0.8vh;
                 text-align: center;
                 border: 2px solid var(--smoke-gray);
+                border-left: none;
                 font-weight: 600;
                 font-size: 2.8vh;
                 color: var(--off-white);
@@ -142,6 +144,17 @@
             .results-table tr.position-row td {
                 font-size: 3.5vh;
                 font-weight: 900;
+                border-left: none;
+            }
+
+            .results-table td.no_right_border {
+                border-right: none;
+            }
+
+            .results-table tr.position-row td.position-header {
+                font-size: 2.7vh;
+                font-weight: 600;
+                border-right: none;
             }
 
             .results-table tr.delta-row {
@@ -152,6 +165,13 @@
             .avg-row {
                 background-color: var(--steel-gray) !important;
                 font-weight: 700;
+            }
+
+            .results-table td.row_header, .results-table th.row_header {
+                font-size: 2.7vh;
+                font-weight: 600;
+                writing-mode: vertical-lr;
+                transform: rotate(180deg);
             }
 
             .results-table tr.legend-row {
@@ -242,7 +262,7 @@
                 <table class="results-table">
                     <thead>
                         <tr>
-                            <th style="width: 5%;">LAPS</th>
+                            <th style="width: 5%;" class="row_header">LAPS</th>
                             {% if current_race %}
                                 {% for kart in current_race.karts %}
                                     <th>{{ kart }}</th>
@@ -255,7 +275,7 @@
                             {% set num_karts = current_race.karts | length %}
                             {% set decimal_places = 2 if num_karts > 4 else 3 %}
                             
-                            {% for lap_num in range(10 if current_race.max_time<10 else current_race.max_time)[-10:] %}
+                            {% for lap_num in range(12 if current_race.max_time<12 else current_race.max_time)[-12:] %}
                             <tr>
                                 <td>{{ lap_num + 1 }}</td>
                                 {% for kart in current_race.karts %}
@@ -273,7 +293,7 @@
                             <!-- Итоговые строки -->
                             <!-- Строка дельты (последний круг относительно лучшего) -->
                             <tr class="delta-row">
-                                <td>DIFF</td>
+                                <td class="no_right_border">DIFF</td>
                                 {% for kart in current_race.karts %}
                                     {% set last_lap_time = current_race.laps[kart][-1] | float if current_race.laps[kart][-1] %}
                                     {% set prelast_lap_time = current_race.laps[kart][-2] | float if current_race.laps[kart][-2] %}
@@ -292,13 +312,13 @@
                                 {% endfor %}
                             </tr>
                             <tr class="highlight-row">
-                                <td>BEST</td>
+                                <td class="no_right_border">BEST</td>
                                 {% for kart in current_race.karts %}
                                     <td>{{ "%.*f" | format(decimal_places, current_race.best_times[kart]) }}</td>
                                 {% endfor %}
                             </tr>
                             <tr class="avg-row">
-                                <td>AVG</td>
+                                <td class="no_right_border">AVG</td>
                                 {% for kart in current_race.karts %}
                                     <td>{{ "%.*f" | format(decimal_places, current_race.avg_times[kart]) }}</td>
                                 {% endfor %}
@@ -306,13 +326,14 @@
                             
                             
                             <tr class="position-row">
-                                <td>BEST DIFF</td>
+                                <td class="position-header">BEST DIFF</td>
                                 {% for kart in current_race.karts %}
-                                    <td>{{ "%.*f" | format(decimal_places, current_race.time_deltas[kart] | float) }}</td>
+                                    <td>{{ "%.*f" | format(decimal_places, current_race.time_deltas[kart] | float) }}<br>
+                                        {{ current_race.positions[kart] }}</td>
                                 {% endfor %}
                             </tr>
                             <tr class="legend-row">
-                                <td colspan="{{current_race.karts | length + 1 }}">Л-ЛУЧШИЙ С-СРЕДНИЙ М-МЕСТО Δ-ДЕЛЬТА (ПОСЛЕДНИЙ КРУГ ОТНОСИТЕЛЬНО ЛУЧШЕГО)</td>
+                                <td colspan="{{current_race.karts | length + 1 }}">DIFF - разница с предыдущим кругом, AVG - среднее время круга, BEST - лучший круг, BEST DIFF - разница с лучшим кругом</td>
                             </tr>
                         {% else %}
                             <tr><td colspan="100%">Нет данных</td></tr>
@@ -326,7 +347,7 @@
             Обновлено: {{ last_updated }}
         </footer>
         <script>
-            let currentView = "{{ current_view }}";
+            let currentSubView = "{{ current_subview }}";
 
             let lastUpdateTime = "{{ last_updated }}";
 
@@ -366,10 +387,10 @@
                         return response.json();
                     })
                     .then(data => {
-                        // Сравниваем ЧИСЛА: currentView (число) vs data.view (число)
-                        if (data.view !== currentView) {
-                            console.log(`Вид изменился: ${currentView} → ${data.view}`);
-                            currentView = data.view;
+                        // Сравниваем ЧИСЛА: currentSubView (число) vs data.view (число)
+                        if (data.view !== currentSubView) {
+                            console.log(`Вид изменился: ${currentSubView} → ${data.view}`);
+                            currentSubView = data.view;
 
                             // Анимация + перезагрузка
                             document.body.style.animation = 'viewChangeFlash 1s';
