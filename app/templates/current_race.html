@@ -1,0 +1,128 @@
+    {% if error_message %}
+        <div class="error-message">
+            {{ error_message }}
+        </div>
+    {% else %}
+        <div class="table-container">
+            <div class="grid-table" id="results-table">
+                <!-- Заголовок -->
+                <div class="grid-header">
+                    <div class="cell">POS</div>
+                    <div class="cell">KART</div>
+                    <div class="cell">BEST</div>
+                    <div class="cell">LAST</div>
+                    <div class="cell">TOTAL</div>
+                    <div class="cell">LAPS</div>
+                    <div class="cell">DIFF</div>
+                    <div class="cell">GAP</div>
+                </div>
+
+                <!-- Данные -->
+                {% for kart in current_race.karts %}
+                <div class="grid-row {% if current_race.positions[kart] == 1 %}leader{% endif %}">
+                    <div class="cell">{{ current_race.positions[kart] }}</div>
+                    <div class="cell">{{ kart }}</div>
+                    <div class="cell">{{ "%.3f"|format(current_race.best_times[kart]) }}</div>
+                    <div class="cell">{{ "%.3f"|format(current_race.last_laps[kart]) }}</div>
+                    <div class="cell">{{ "%.3f"|format(current_race.total_time[kart]) }}</div>
+                    <div class="cell">{{ current_race.total_laps[kart] }}</div>
+                    <div class="cell {% if current_race.diff[kart] < 0 %}delta-positive
+                        {% elif current_race.diff[kart] > 0 %}delta-negative
+                        {% else %}delta-neutral{% endif %}">
+                        {{ "%+.3f"|format(current_race.diff[kart]) }}
+                    </div>
+                    <div class="cell">{{ "%.3f"|format(current_race.time_deltas[kart]) }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <footer>
+        Обновлено: <span id="last-update">{{ last_updated }}</span>
+        <div id="loading-indicator">
+            <span class="spinner"></span>Обновление...
+        </div>
+    </footer>
+    
+    <script>
+        // Глобальные переменные
+        let lastUpdateTime = "{{ last_updated }}";
+        let currentView = "{{ current_view }}";  // ← получаем от сервера как ЧИСЛО
+
+        // === 1. Проверка обновлений ДАННЫХ ===
+        function checkForUpdates() {
+            fetch('/check-updates')
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.updated) {
+                        console.log('🔄 Данные обновлены:', data);
+                        lastUpdateTime = data.iso_time || new Date().toISOString();
+                        document.getElementById('last-update').textContent = new Date(data.timestamp * 1000).toLocaleString();
+
+                        // Анимация
+                        document.querySelectorAll('#results-table tbody tr').forEach(row => {
+                            row.classList.add('updated');
+                            setTimeout(() => row.classList.remove('updated'), 800);
+                        });
+
+                        // Перезагрузка
+                        document.getElementById('loading-indicator').style.display = 'block';
+                        setTimeout(() => location.reload(), 800);
+                    }
+                    // Повторяем каждые 5 сек
+                    setTimeout(checkForUpdates, сurrent_race.UPD_TIME);
+                })
+                .catch(error => {
+                    console.error('Ошибка /check-updates:', error);
+                    setTimeout(checkForUpdates, 10000);
+                });
+        }
+
+        // === 2. Проверка смены ВИДА ===
+        function checkForState() {
+            fetch('/state')
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.view !== currentView) {
+                        console.log(` Вид изменился: ${currentView} → ${data.view}`);
+                        currentView = data.view;
+
+                        // Анимация + перезагрузка
+                        document.querySelectorAll('#results-table tbody tr').forEach(row => {
+                            row.classList.add('updated');
+                            setTimeout(() => row.classList.remove('updated'), 800);
+                        });
+                        document.getElementById('loading-indicator').style.display = 'block';
+                        document.getElementById('loading-indicator').innerHTML = '<span class="spinner"></span>Смена вида...';
+
+                        setTimeout(() => location.reload(), 800);
+                    }
+                    // Опрашиваем чаще — каждые 2 сек
+                    setTimeout(checkForState, сurrent_race.UPD_TIME);
+                })
+                .catch(error => {
+                    console.error('Ошибка /state:', error);
+                    setTimeout(checkForState, 5000);
+                });
+        }
+
+        // === Инициализация ===
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Запущен опрос');
+            checkForUpdates();
+            checkForState();
+
+            // Анимация при первом открытии
+            document.querySelectorAll('#results-table tbody tr').forEach((row, i) => {
+                row.classList.add('updated');
+                setTimeout(() => row.classList.remove('updated'), 800);
+            });
+        });
+    </script>

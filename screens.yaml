@@ -1,0 +1,40 @@
+defaults:
+  width: 320
+  height: 160
+  top_interval: 5
+  message_interval: 4
+  fps: 15
+  borderless: true
+  always_on_top: true
+  # GIF paths are relative to this file. "previous" reuses the preceding view's
+  # animation and keeps its timeline. Empty value enables the fallback effect.
+  background_time_temperature: "assets/time-temperature.gif"
+  background_daily_record: "previous"
+
+screens:
+  - name: children-screen
+    x: 0
+    y: 0
+    record_category: children
+    record_label: "Рекорд дня · Дети"
+    messages:
+      - "Время работы\n12–21"
+      - "10 минут\n1000 ₽"
+
+  - name: women-screen
+    x: 320
+    y: 0
+    record_category: women
+    record_label: "Рекорд дня · Женщины"
+    messages:
+      - "Время работы\n12–21"
+      - "10 минут\n1000 ₽"
+
+  - name: men-screen
+    x: 640
+    y: 0
+    record_category: men
+    record_label: "Рекорд дня · Мужчины"
+    messages:
+      - "Время работы\n12–21"
+      - "10 минут\n1000 ₽"

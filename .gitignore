@@ -2,10 +2,11 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.log
+*.log.*
 .env
 venv/
 .venv/
 data/
 .DS_Store
-tests/
 .vscode/

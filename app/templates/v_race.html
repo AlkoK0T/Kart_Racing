@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты заездов</title>
+    <style>
+        :root {
+            --blood-red: #fe1e1e;
+            --light-green: #85ad3b;
+            --pure-black: #000000;
+            --coal-black: #121212;
+            --steel-gray: #1e1e1e;
+            --smoke-gray: #4a4a4a;
+            --carbon-gray: #3c3c3c;
+            --off-white: #f0f0f0;
+            --racing-green: #00cc44;
+            --positive-green: #33cc33;
+            --negative-red: #ff3333;
+            --neutral-gray: #888888;
+        }
+
+        body {
+            font-family: 'Rajdhani', 'Arial Narrow', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--coal-black);
+            color: var(--off-white);
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(to bottom, var(--pure-black), var(--coal-black));
+            border-bottom: 4px solid var(--blood-red);
+            text-align: center;
+            position: relative;
+            flex-shrink: 0;
+            height: 9vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        header::before {
+            content: "";
+            position: absolute;
+            bottom: -12px;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 12px,
+                var(--blood-red) 12px,
+                var(--blood-red) 24px
+            );
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--blood-red);
+            text-shadow: 0 0 8px rgba(255, 50, 50, 0.7);
+            line-height: 1;
+        }
+
+        .table-container {
+            flex: 1;
+            padding: 0.5rem;
+            box-sizing: border-box;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ——— GRID ——— */
+        .grid-table {
+            display: grid;
+            --data-row-height: calc((100vh - 9vh - 3vh - 1rem) / 8);
+            --header-row-height: calc(var(--data-row-height) * 0.5);
+            grid-template-rows: var(--header-row-height) repeat(auto-fill, var(--data-row-height));
+            grid-template-columns: 
+                minmax(60px, 0.8fr)   /* POS */
+                minmax(60px, 0.8fr)   /* NUM */
+                minmax(90px, 1.2fr)   /* BEST LAP */
+                minmax(90px, 1.2fr)   /* LAST LAP */
+                minmax(100px, 1.3fr)  /* TOTAL TIME */
+                minmax(60px, 0.8fr)   /* LAPS */
+                minmax(80px, 1fr)     /* DIFF */
+                minmax(80px, 1fr);    /* GAP */
+            border: 3px solid var(--blood-red);
+            background-color: var(--steel-gray);
+            box-shadow: 0 0 20px rgba(255, 50, 50, 0.4);
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex: 1;
+        }
+
+        .grid-header,
+        .grid-row {
+            display: contents;
+        }
+
+        /* Общая ячейка */
+        .cell {
+            border: 2px solid var(--smoke-gray);
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 0.2rem 0.3rem;
+            box-sizing: border-box;
+            line-height: 1;
+        }
+
+        /* Заголовок — маленький */
+        .grid-header > .cell {
+            background: linear-gradient(to bottom, var(--pure-black), var(--carbon-gray));
+            color: var(--off-white);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            font-size: clamp(1.2rem, 2.4vw, 1.9rem);
+            padding: 0.15rem 0.3rem;
+        }
+
+        /* Данные — ОГРОМНЫЙ шрифт + центрирование */
+        .grid-row > .cell {
+            font-weight: 700;
+            font-size: clamp(1.6rem, 3.3vw, 2.7rem); /* ← в ~3 раза крупнее */
+        }
+
+        .grid-row:nth-child(odd) > .cell {
+            background-color: rgba(42, 42, 42, 0.85);
+        }
+
+        .grid-row:nth-child(even) > .cell {
+            background-color: rgba(51, 51, 51, 0.85);
+        }
+
+        .grid-row:hover > .cell {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .grid-row.leader > .cell {
+            background: var(--carbon-gray) !important;
+            font-weight: 800;
+        }
+
+        /* Цвета дельты — жирные и яркие */
+        .delta-positive { color: var(--positive-green) !important; }
+        .delta-negative { color: var(--negative-red)   !important; }
+        .delta-neutral   { color: var(--neutral-gray)   !important; }
+
+        /* Footer & Error */
+        .error-message {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            text-align: center;
+            font-size: clamp(2rem, 6vw, 3.2rem);
+            color: var(--off-white);
+            text-shadow: 0 0 12px rgba(0,0,0,0.7);
+        }
+
+        footer {
+            flex-shrink: 0;
+            height: 3vh;
+            text-align: center;
+            padding: 0.2rem 0;
+            font-size: clamp(0.6rem, 1.2vw, 0.8rem);
+            color: var(--smoke-gray);
+            background-color: rgba(0,0,0,0.35);
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+        footer:hover { opacity: 1; }
+
+        /* Анимации */
+        @keyframes lift {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .updated {
+            animation: lift 0.5s ease-out;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top-color: var(--light-green);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 5px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #loading-indicator {
+            display: none;
+            color: var(--light-green);
+            font-size: 0.9rem;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+<!--
+<header>
+    <h1>{{ header }}</h1>
+</header>
+-->
+    {% if data['current_race'] %}
+       <!-- current_race.html -->
+       {% include "current_race.html" ignore missing %}
+    {% endif %}
+
+<div class="content">
+    {% for item in data.raw %}
+        {% set current = data.raw[item] %}
+    <!--{{ item }} {{ current.headers }} -->
+        {% include "sub_" ~ item ~".html" ignore missing %}
+    {% endfor %}
+
+</div>
+<div>
+<img src="{{ url_for('static', filename='results.bmp') }}" width="99%"/>
+</div>
+</body>
+</html>

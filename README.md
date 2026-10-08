@@ -1,127 +1,335 @@
-## Технологии
+# Kart Racing Display
 
-- Python 3.10+
-- Flask
-- PyYAML
-- HTML5/CSS3
-- JavaScript
+Система собирает данные картинг-центра из файлов, TCP и RS-232, хранит актуальное
+состояние в памяти и одновременно выводит его через веб-приложение и три локальных
+Pygame-окна.
+
+## Возможности
+
+- модульные источники и модули индикации;
+- общая шина событий и потокобезопасное хранилище;
+- актуальный заезд, рекорды дня/месяца, время, температура и прогноз;
+- последний YAML-файл отдельно для каждой категории;
+- приём данных по TCP, универсальному RS-232 и USB-термометру ODTEMP;
+- существующий Flask-интерфейс и JSON API;
+- три независимых SDL2/Pygame-окна с настраиваемыми координатами;
+- GIF-фоны, процедурные резервные эффекты и сменяемые сообщения;
+- Behave-тесты без физического COM-порта.
 
 ## Установка
 
-1. Клонируйте репозиторий:
-```bash
-git clone https://github.com/your-username/karting-results.git
-cd karting-results
+Требуются Python 3.10+ и Windows для целевого варианта локальной индикации.
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 ```
 
-2. Создайте виртуальное окружение:
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/MacOS
-venv\Scripts\activate    # Windows
+Основные зависимости: Flask, PyYAML, pyserial, Pillow, Pygame и Behave.
+
+## Запуск
+
+```powershell
+.\.venv\Scripts\python.exe run.py
 ```
 
-3. Установите зависимости:
-```bash
-pip install -r requirements.txt
+Один запуск создаёт веб-приложение на `http://localhost:5000`, TCP-сервер на
+`127.0.0.1:8765`, три Pygame-окна, файловый источник, часы, автоопределяемый
+ODTEMP и настроенный универсальный RS-232 источник. Экранный модуль включён по
+умолчанию.
+
+Только веб-приложение без локальных окон:
+
+```powershell
+$env:DISPLAY_ENABLED="False"
+.\.venv\Scripts\python.exe run.py
 ```
 
-4. Создайте файл конфигурации:
-```bash
-cp .env.example .env
+Flask reloader отключён, иначе источники и окна запускались бы дважды.
+
+## Данные
+
+В памяти находится один актуальный снимок для каждой категории:
+
+| Ключ | Содержимое |
+|---|---|
+| `current_race` | состояние гонки, круги и участники |
+| `records_day` | дневные рекорды детей, женщин и мужчин |
+| `records_month` | месячные рекорды тех же категорий |
+| `current_time` | текущее локальное время |
+| `temperature` | температура |
+| `forecast_tomorrow` | задел для прогноза на завтра |
+
+### Файлы
+
+Для каждой категории создаётся отдельный каталог. Актуальным считается последний
+изменённый YAML внутри него:
+
+```text
+data/
+├── current_race/race.yaml
+├── records_day/records.yaml
+├── records_month/records.yaml
+├── temperature/sensor.yaml
+└── forecast_tomorrow/forecast.yaml
 ```
 
-5. Отредактируйте .env файл при необходимости:
-```env
-DATA_FOLDER=data
-PORT=5000
-DEBUG=True
-```
+Для совместимости YAML непосредственно в `data/` считается текущей гонкой.
 
-6. Запустите приложение:
-```bash
-python run.py
-```
+Пример заезда:
 
-Приложение будет доступно по адресу: http://localhost:5000
-
-## Добавление данных
-
-Для обновления результатов создайте YAML-файлы в папке `data`:
-
-### 1. Текущий заезд (пример)
 ```yaml
 laps:
   kart_01: [32.45, 31.89, 32.12, 31.76]
   kart_02: [33.12, 32.45, 32.89, 32.34]
-  kart_03: [31.98, 31.45, 31.67, 31.23]
 ```
 
-### 2. Лучшие круги (пример)
+Пример дневных рекордов:
+
 ```yaml
-best_laps:
-  - [kart_01, 31.76]
-  - [kart_02, 32.34]
-  - [kart_03, 31.23]
+children: {name: Маша, time: 31.2}
+women: {name: Анна, time: 29.8}
+men: {name: Иван, time: 28.4}
 ```
 
-### 3. Топ пилотов (пример)
+Ошибочный или недописанный YAML не заменяет последнее корректное значение.
+
+### TCP
+
+TCP принимает по одному JSON-объекту в строке, максимум 1 МиБ:
+
+```json
+{"category":"temperature","data":21.5}
+```
+
+Успешный ответ: `{"ok":true}`. Одно соединение может отправить несколько строк.
+
+### RS-232
+
+RS-232 включается при заданном `SERIAL_PORT`. Допустимо простое число температуры
+(`19.5` или `19,5`) либо категоризированный JSON:
+
+```json
+{"category":"temperature","data":19.5}
+```
+
+### USB-термометр ODTEMP
+
+`ODTempSource` включён по умолчанию и ищет USB CDC устройство с VID:PID
+`0483:A26A`. Номер COM-порта может меняться — жёсткая привязка к COM12 не нужна.
+После подключения источник отправляет `~I`, проверяет режим командой `~F` и затем
+пассивно слушает автоматические сообщения `~G...`. Если поток выключен, команда
+`~W2000` включает его. Каждое сообщение публикуется в `temperature`.
+
+Проверенное устройство на этой системе:
+
+```text
+порт: COM12
+USB: 0483:A26A
+идентификация: 1.4S Jul 24 2020 DS18B20
+ответ: ~G20.5
+```
+
+`ODTEMP_PORT` позволяет вручную указать порт. Ответ вида `~G26.6;13.5` дополнительно
+публикует `humidity`. Если корректных показаний нет 120 секунд, соединение считается
+неисправным. Порт закрывается, а автоопределение и полная инициализация повторяются
+раз в 60 секунд до успеха.
+
+Переходы восстановления видны на уровне INFO: `connection lost`, затем каждая
+`reinitialization attempt`, успешная инициализация и, только после первого нового
+показания, `temperature reading restored`.
+
+## Три экранных окна
+
+Настройки находятся в `screens.yaml`. По умолчанию создаются окна 320×160:
+
+| Окно | Координаты | Рекорд |
+|---|---:|---|
+| children-screen | 0, 0 | дети |
+| women-screen | 320, 0 | женщины |
+| men-screen | 640, 0 | мужчины |
+
+Каждое окно делится пополам: верхние 320×80 чередуют время/температуру и рекорд
+дня, нижние 320×80 циклически показывают настроенные описания.
+
 ```yaml
-top_pilots:
-  - [Иванов И., 31.23]
-  - [Петров П., 31.45]
-  - [Сидоров С., 31.76]
+- name: men-screen
+  x: 640
+  y: 0
+  record_category: men
+  record_label: "Рекорд дня · Мужчины"
+  messages:
+    - "Время работы\n12–21"
+    - "10 минут\n1000 ₽"
 ```
 
-## Структура проекта
+Отдельно настраиваются `width`, `height`, `fps`, `top_interval`,
+`message_interval`, `borderless` и `always_on_top`.
 
+### GIF-фоны
+
+Каждому сменяемому верхнему виду назначается GIF:
+
+```yaml
+background_time_temperature: "assets/time-temperature.gif"
+background_daily_record: "assets/daily-record.gif"
 ```
-karting-results/
-├── app/
-│   ├── __init__.py       - Инициализация приложения
-│   ├── routes.py         - Маршруты Flask
-│   └── data_loader.py    - Загрузка и обработка данных
-├── tests/
-│   └── test_app.py       - Тесты приложения
-├── templates/
-│   └── results.html      - HTML шаблон
-├── data/                 - Папка с данными (создается автоматически)
-├── config.py             - Конфигурация приложения
-├── run.py                - Точка входа
-├── requirements.txt      - Зависимости
-├── .env.example          - Пример конфигурации окружения
-└── README.md             - Документация
+
+Пути считаются относительно `screens.yaml`. `previous` использует фон соседнего
+вида с общей временной шкалой, не перезапуская анимацию:
+
+```yaml
+background_daily_record: "previous"
 ```
+
+Pillow один раз декодирует и масштабирует GIF. Pygame хранит кадры в памяти,
+накладывает текст и выводит композицию через отдельный SDL2 renderer каждого окна.
+При отсутствии GIF используется процедурный эффект.
+
+## Веб-интерфейс
+
+| Маршрут | Назначение |
+|---|---|
+| `GET /` | текущая HTML-индикация |
+| `GET /api/data` | полный снимок хранилища |
+| `GET /check-updates?revision=N` | long polling изменений |
+| `GET /state` | текущий вариант веб-индикации |
+| `PUT /state` | смена варианта: `{"view":"style2"}` |
+| `GET /set_state` | страница управления |
+
+## Переменные окружения
+
+| Переменная | По умолчанию | Назначение |
+|---|---:|---|
+| `DATA_FOLDER` | `data` | корень файловых категорий |
+| `PORT` | `5000` | порт Flask |
+| `DEBUG` | `False` | отладка Flask |
+| `FILE_POLL_INTERVAL` | `1` | проверка файлов, секунд |
+| `TCP_ENABLED` | `True` | TCP-источник |
+| `TCP_HOST` | `127.0.0.1` | адрес TCP-сервера |
+| `TCP_PORT` | `8765` | порт TCP-сервера |
+| `SERIAL_PORT` | пусто | COM-порт; пусто — выключен |
+| `SERIAL_BAUDRATE` | `9600` | скорость RS-232 |
+| `ODTEMP_ENABLED` | `True` | автоопрос ODTEMP |
+| `ODTEMP_PORT` | пусто | ручной порт или автоматический поиск |
+| `ODTEMP_VID` | `0483` | USB VID в hexadecimal |
+| `ODTEMP_PID` | `A26A` | USB PID в hexadecimal |
+| `ODTEMP_STREAM_INTERVAL_MS` | `2000` | период, включаемый при выключенном потоке |
+| `ODTEMP_WATCHDOG_TIMEOUT` | `120` | отсутствие данных до переинициализации, секунд |
+| `ODTEMP_RECONNECT_INTERVAL` | `60` | период повторной инициализации, секунд |
+| `DISPLAY_ENABLED` | `True` | три Pygame-окна |
+| `DISPLAY_CONFIG` | `screens.yaml` | конфигурация окон |
+| `LOG_LEVEL` | `INFO` | уровень журнала (`DEBUG`, `INFO`, `WARNING`...) |
+| `LOG_FILE` | `karting.log` | файл журнала; пусто — только консоль |
+| `LOG_MAX_BYTES` | `5242880` | размер файла до ротации |
+| `LOG_BACKUP_COUNT` | `3` | количество архивных файлов |
+
+## Журналирование
+
+По умолчанию сообщения одновременно выводятся в консоль и UTF-8 файл
+`karting.log`. После 5 МиБ выполняется ротация в `karting.log.1` и далее до трёх
+архивов.
+
+На уровне `INFO` записываются запуск и остановка модулей, адреса серверов,
+подключения, автоопределение ODTEMP, переинициализация, загрузка файлов/GIF и смена
+рабочего состояния. Входные значения на этом уровне не дублируются.
+
+Для полной диагностики:
+
+```powershell
+$env:LOG_LEVEL="DEBUG"
+.\.venv\Scripts\python.exe run.py
+```
+
+`DEBUG` записывает каждое событие с topic/source/payload, каждое изменение
+`DataStore`, исходные строки источников, выбранные файлы, HTTP-запросы/ответы и
+содержимое формируемых экранных кадров.
 
 ## Тестирование
 
-Запуск тестов:
-```bash
-pytest tests/
+```powershell
+.\.venv\Scripts\python.exe -m behave
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-## Развертывание
+Текущий набор: 6 features, 44 сценария и 167 Behave-шагов. Проверяются ядро,
+lifecycle, YAML, TCP, имитация RS-232, Flask, экранный планировщик, GIF-настройки и
+сборка кадра на `pygame.Surface`.
 
-### Heroku
-```bash
-heroku create your-app-name
-git push heroku main
+## Инвентаризация COM-портов
+
+Независимый `com_port_inventory.py` не импортирует и не запускает основное
+приложение, не открывает COM-порты и не отправляет устройствам команды. Он получает
+аппаратные сведения от ОС и сравнивает стабильные ID с `com_devices.csv`.
+
+Однократная проверка:
+
+```powershell
+.\.venv\Scripts\python.exe com_port_inventory.py
 ```
 
-### PythonAnywhere
-1. Загрузите файлы через веб-интерфейс
-2. Настройте виртуальное окружение
-3. Укажите путь к WSGI-файлу: `/var/www/yourusername_pythonanywhere_com_wsgi.py`
+Непрерывное наблюдение раз в пять секунд:
 
-### Docker
-```Dockerfile
-FROM python:3.10-slim
-
-WORKDIR /app
-COPY . .
-
-RUN pip install -r requirements.txt
-
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "run:app"]
+```powershell
+.\.venv\Scripts\python.exe com_port_inventory.py --watch 5
 ```
 
+Добавление неизвестных устройств в CSV:
+
+```powershell
+.\.venv\Scripts\python.exe com_port_inventory.py --add-new
+```
+
+После этого заполните поля `name` и `notes`. `expected_port` сохраняет известный
+порт, а при его изменении устройство показывается как `MOVED`. Для принятия текущих
+номеров портов:
+
+```powershell
+.\.venv\Scripts\python.exe com_port_inventory.py --accept-current-ports
+```
+
+Состояния отчёта: `OK`, `MOVED`, `NEW`, `ABSENT`. Наиболее надёжен ID USB
+`VID:PID:serial_number`. Если устройство не сообщает серийный номер, используется
+хеш полного HWID; такой ID может зависеть от USB-разъёма или драйвера.
+
+## Отправка рекордов из Delphi 7
+
+Модуль `delphi/KartRecordsSender.pas` отправляет дневные и месячные рекорды через
+TCP JSON Lines без сторонних Delphi-компонентов. Он использует стандартный WinSock,
+кодирует русские имена в UTF-8, корректно передаёт дробные значения независимо от
+системного десятичного разделителя и проверяет ответ сервера.
+
+Готовый консольный пример находится в `delphi/RecordsSenderExample.dpr`, инструкция
+подключения — в [`delphi/README.md`](delphi/README.md).
+
+## Структура проекта
+
+```text
+Kart_Racing/
+├── app/                    # Flask, маршруты и шаблоны
+├── karting/
+│   ├── core.py             # EventBus, DataStore, Runtime
+│   └── modules/
+│       ├── clock.py
+│       ├── files.py
+│       ├── odtemp.py       # ODTEMP, CDC и автоопределение COM
+│       ├── serial.py
+│       ├── tcp.py
+│       └── screens.py      # Pygame/SDL2 и GIF-композиция
+├── features/               # Behave
+├── delphi/                  # отправитель рекордов для Delphi 7
+├── tests/                  # unit-тесты
+├── data/                   # входные данные
+├── screens.yaml
+├── com_port_inventory.py   # независимая инвентаризация COM
+├── com_devices.csv         # реестр известных устройств
+├── config.py
+├── run.py                  # composition root
+└── requirements.txt
+```
+
+Технические детали: [ARCHITECTURE.md](ARCHITECTURE.md).
+
+Контракт передачи гонки и статистики из внешней программы:
+[interface.md](interface.md).
