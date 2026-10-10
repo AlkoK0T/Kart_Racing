@@ -266,12 +266,17 @@ GET http://127.0.0.1:5000/api/data
 `delphi/KartRecordsSender.pas` уже реализует передачу `records_day` и
 `records_month`, UTF-8, JSON Lines и проверку ответа:
 
-Важно: Delphi-отправитель пока требует исправления CR-19 для отсутствующих
-результатов. Не отправляйте фиктивную запись с временем `0`: сервер отклонит её;
-по контракту требуется `null`. Компиляция Delphi 7 в рамках CR-03 не проверялась.
+EmptyKartRecord передаёт null, MakeKartRecord — конечное положительное время.
+SendRecordsForPeriod принимает явные date/month; старые SendDay/MonthRecords
+используют локальную дату отправителя. Снимки включают schema_version и UTC updated_at.
+Для GUI используйте TKartRecordsQueue: максимум два ожидающих снимка (день/месяц),
+сеть вне UI, отменяемый общий deadline 5 секунд. Только IPv4/localhost, без DNS.
+Ответ проверяется как JSON с единственным top-level boolean ok=true.
+Реальная сборка Delphi 7 не подтверждена: доступный компилятор отказал из-за лицензии.
+Opt-in инструкция и пример: [delphi/README.md](delphi/README.md).
 
 ```pascal
-SendDayRecords('127.0.0.1', 8765,
+SendRecordsForPeriod('127.0.0.1', 8765, 'records_day', '2026-10-10',
   ChildrenRecord, WomenRecord, MenRecord, Response, ErrorText);
 ```
 

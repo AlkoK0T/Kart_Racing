@@ -370,9 +370,15 @@ node --test tests/js/test_polling.cjs
 .\.venv\Scripts\python.exe com_port_inventory.py --accept-current-ports
 ```
 
-Состояния отчёта: `OK`, `MOVED`, `NEW`, `ABSENT`. Наиболее надёжен ID USB
-`VID:PID:serial_number`. Если устройство не сообщает серийный номер, используется
-хеш полного HWID; такой ID может зависеть от USB-разъёма или драйвера.
+Состояния отчёта: OK, MOVED, NEW, ABSENT, LEGACY, AMBIGUOUS.
+physical_device_id — VID/PID/serial; device_id дополнительно содержит USB-интерфейс,
+если ОС его сообщает. Совпадающие ID не считаются однозначными, запись CSV отменяется.
+Без уникального serial отличить одинаковые платы гарантированно нельзя; fallback
+HWID/PORT может зависеть от USB-разъёма/драйвера, LOCATION не является serial.
+Дубликаты ID в CSV отклоняются. CSV заменяется атомарно, ручные и дополнительные
+колонки сохраняются. LEGACY с единственным интерфейсом мигрирует только через
+--accept-current-ports; несколько интерфейсов требуют ручного выбора и отдельных
+строк device_id. Реальный com_devices.csv автоматически не изменялся.
 
 ## Отправка рекордов из Delphi 7
 
