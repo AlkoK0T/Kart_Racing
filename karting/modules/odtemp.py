@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import re
 import time
 from threading import Event as ThreadEvent, Thread
@@ -30,6 +31,8 @@ def parse_odtemp_line(line: str) -> tuple[float, float | None] | None:
         return None
     temperature = float(match.group(1).replace(",", "."))
     humidity = float(match.group(2).replace(",", ".")) if match.group(2) else None
+    if not math.isfinite(temperature) or (humidity is not None and (not math.isfinite(humidity) or not 0 <= humidity <= 100)):
+        return None
     return temperature, humidity
 
 
@@ -85,7 +88,13 @@ class ODTempSource:
             self._read_loop()
         except Exception as exc:
             log.exception('ODTEMP worker failed; automatic retries stopped')
+            self._invalidate_readings('unavailable')
+            self._store.remove('odtemp_device', source=self.name)
             self._status('failed', error=f'{type(exc).__name__}: {exc}')
+
+    def _invalidate_readings(self, quality):
+        for key in ('temperature', 'humidity'):
+            self._store.mark_quality(key, quality, owner=self.name)
 
     def _status(self, state: str, port: str | None = None, error: str | None = None):
         self._store.set('source.odtemp', {'state': state, 'port': port, 'error': error}, source=self.name)
@@ -157,6 +166,8 @@ class ODTempSource:
                             self._store.set("temperature", temperature, source=self.name)
                             if humidity is not None:
                                 self._store.set("humidity", humidity, source=self.name)
+                            else:
+                                self._store.mark_quality('humidity', 'unavailable', owner=self.name)
                         elif is_measurement_stale(
                             last_measurement, time.monotonic(), self._watchdog_timeout
                         ):
@@ -169,9 +180,12 @@ class ODTempSource:
                     port, exc, self._reconnect_interval,
                 )
                 recovering = True
+                self._invalidate_readings('stale' if isinstance(exc, TimeoutError) else 'unavailable')
                 self._store.remove("odtemp_device", source=self.name)
                 self._status('reconnecting', port, str(exc))
                 self._stop.wait(self._reconnect_interval)
+        self._invalidate_readings('unavailable')
+        self._store.remove('odtemp_device', source=self.name)
         self._status('stopped')
 
     @staticmethod

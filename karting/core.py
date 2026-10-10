@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import logging
 from datetime import datetime, timezone
 from queue import Empty, Full, Queue
@@ -163,6 +163,7 @@ class DataValue:
     updated_at: datetime
     source: str
     revision: int
+    quality: str = 'good'
 
 
 class DataStore:
@@ -188,6 +189,22 @@ class DataStore:
         with self._lock:
             item = self._values.get(key)
             return default if item is None else item.value
+
+    def mark_quality(self, key: str, quality: str, *, owner: str) -> bool:
+        """Change quality only while this producer still owns the reading."""
+        if quality not in ('good', 'stale', 'unavailable'):
+            raise ValueError('unsupported data quality')
+        with self._lock:
+            old = self._values.get(key)
+            if old is None or old.source != owner or old.quality == quality:
+                return False
+            self._revision += 1
+            item = replace(old, quality=quality, revision=self._revision)
+            self._values[key] = item
+        log.info('store quality changed key=%s source=%s quality=%s revision=%s', key, owner, quality, item.revision)
+        self._bus.publish(Event(f'data.{key}', item, owner))
+        self._bus.publish(Event('data.changed', {'key': key, 'item': item}, owner))
+        return True
 
     def item(self, key: str) -> DataValue | None:
         with self._lock:

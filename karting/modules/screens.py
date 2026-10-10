@@ -74,7 +74,8 @@ class ContentPlanner:
                 current_text = current.strftime("%H:%M:%S")
             else:
                 current_text = str(current)
-            temperature = self._store.get("temperature", "—")
+            item = self._store.item('temperature')
+            temperature = item.value if item is not None and item.quality == 'good' else '—'
             top = (current_text, f"Температура: {format_temperature(temperature)}")
             effect = "waves"
             background = resolve_background(config, "time_temperature")
@@ -125,6 +126,8 @@ def format_record(record: Any) -> str:
 
 
 def format_temperature(value: Any) -> str:
+    if value is None:
+        return '—'
     if isinstance(value, dict):
         value = value.get("value", value.get("temperature", "—"))
     if isinstance(value, (int, float)):

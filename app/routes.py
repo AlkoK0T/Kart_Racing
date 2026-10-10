@@ -88,8 +88,27 @@ def show_results():
 @web.route("/api/data")
 def all_data():
     snapshot = _runtime().store.snapshot()
+    for key in ('temperature', 'humidity'):
+        item = _runtime().store.item(key)
+        if item is not None and item.quality != 'good':
+            snapshot[key] = None
     log.debug("HTTP API snapshot=%r", snapshot)
     return jsonify(snapshot)
+
+
+@web.route('/api/health')
+def health():
+    runtime = _runtime()
+    readings = {}
+    for key in ('temperature', 'humidity'):
+        item = runtime.store.item(key)
+        if item is not None:
+            readings[key] = {'last_value': item.value, 'quality': item.quality,
+                             'received_at': item.updated_at.isoformat(),
+                             'source': item.source, 'revision': item.revision}
+    return jsonify({'sources': {key: value for key, value in runtime.store.snapshot().items()
+                                if key.startswith('source.')},
+                    'readings': readings, 'subscribers': runtime.bus.subscriber_health()})
 
 
 @web.route("/check-updates")
