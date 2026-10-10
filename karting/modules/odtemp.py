@@ -81,25 +81,33 @@ class ODTempSource:
         log.info("ODTEMP source stopped")
 
     def _run(self) -> None:
+        try:
+            self._read_loop()
+        except Exception as exc:
+            log.exception('ODTEMP worker failed; automatic retries stopped')
+            self._status('failed', error=f'{type(exc).__name__}: {exc}')
+
+    def _status(self, state: str, port: str | None = None, error: str | None = None):
+        self._store.set('source.odtemp', {'state': state, 'port': port, 'error': error}, source=self.name)
+
+    def _read_loop(self) -> None:
         import serial
         from serial.tools import list_ports
 
         recovering = False
         ever_received = False
+        self._status('starting')
         while not self._stop.is_set():
             if recovering:
                 log.info("ODTEMP reinitialization attempt: starting USB auto-detect")
-            port = find_odtemp_port(
-                list_ports.comports(), self._vid, self._pid, self._port
-            )
-            if not port:
-                message = "ODTEMP reinitialization failed: device not found" if recovering else "ODTEMP not found"
-                log.info("%s vid=%04X pid=%04X; retry in %ss", message,
-                         self._vid, self._pid, self._reconnect_interval)
-                self._stop.wait(self._reconnect_interval)
-                continue
-            log.info("ODTEMP port selected port=%s", port)
+            port = None
             try:
+                port = find_odtemp_port(
+                    () if self._port else list_ports.comports(), self._vid, self._pid, self._port
+                )
+                if not port:
+                    raise OSError('ODTEMP device not found')
+                log.info("ODTEMP port selected port=%s", port)
                 with serial.Serial(
                     port, self._baudrate, timeout=1, write_timeout=1
                 ) as device:
@@ -110,6 +118,7 @@ class ODTempSource:
                         "ODTEMP initialized port=%s identification=%r stream=%dms",
                         port, identification, stream_period,
                     )
+                    self._status('waiting_measurement', port)
                     self._store.set(
                         "odtemp_device",
                         {"port": port, "identification": identification,
@@ -139,6 +148,8 @@ class ODTempSource:
                                 )
                             recovering = False
                             ever_received = True
+                            if self._store.get('source.odtemp', {}).get('state') != 'online':
+                                self._status('online', port)
                             log.debug(
                                 "ODTEMP measurement port=%s temperature=%s humidity=%s",
                                 port, temperature, humidity,
@@ -159,7 +170,9 @@ class ODTempSource:
                 )
                 recovering = True
                 self._store.remove("odtemp_device", source=self.name)
+                self._status('reconnecting', port, str(exc))
                 self._stop.wait(self._reconnect_interval)
+        self._status('stopped')
 
     @staticmethod
     def _identify(device: Any) -> str:
