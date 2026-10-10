@@ -13,7 +13,8 @@ def already_running(module):
 def join_worker(module, timeout=3):
     thread = getattr(module, '_thread', None)
     if thread is not None:
-        thread.join(timeout=timeout)
+        if thread.ident is not None or thread.is_alive():
+            thread.join(timeout=timeout)
         if thread.is_alive():
             raise RuntimeError(f'{module.name}: worker did not stop within {timeout}s')
         module._thread = None

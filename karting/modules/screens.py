@@ -4,6 +4,7 @@ import math
 import logging
 import time
 from dataclasses import dataclass
+from contextlib import ExitStack
 from datetime import datetime
 from pathlib import Path
 from threading import Event as ThreadEvent, Thread
@@ -183,6 +184,8 @@ class ScreenDisplay:
         self._error: BaseException | None = None
         self._unsubscribe = None
         self._thread: Thread | None = None
+        self._cleanup_errors = []
+        self.health = {'state': 'stopped', 'error': None}
 
     def start(self) -> None:
         if already_running(self):
@@ -190,22 +193,27 @@ class ScreenDisplay:
         self._stop.clear()
         self._ready.clear()
         self._error = None
+        self._cleanup_errors.clear()
+        self.health = {'state': 'starting', 'error': None}
         self._unsubscribe = self._bus.subscribe("data.changed", lambda event: None)
         self._thread = Thread(target=self._thread_main, name=self.name, daemon=True)
         self._thread.start()
         if not self._ready.wait(timeout=5):
-            self._cleanup_failed_start()
+            try:
+                self._cleanup_failed_start()
+            except Exception:
+                log.exception('screen cleanup after startup timeout failed')
             raise RuntimeError("Pygame screen module did not start within 5 seconds")
         if self._error is not None:
-            self._cleanup_failed_start()
+            try:
+                self._cleanup_failed_start()
+            except Exception:
+                log.exception('screen cleanup after startup error failed')
             raise RuntimeError("Cannot start Pygame screen module") from self._error
         log.info("Pygame screen module initialized screens=%d", len(self._configs))
 
     def _cleanup_failed_start(self) -> None:
-        self._stop.set()
-        if self._unsubscribe:
-            self._unsubscribe()
-            self._unsubscribe = None
+        self.stop()
 
     def stop(self) -> None:
         self._stop.set()
@@ -213,6 +221,8 @@ class ScreenDisplay:
             self._unsubscribe()
             self._unsubscribe = None
         join_worker(self)
+        if self._cleanup_errors:
+            raise RuntimeError('screen resource cleanup failed: ' + '; '.join(self._cleanup_errors))
         log.info("Pygame screen module stopped")
 
     def _thread_main(self) -> None:
@@ -222,19 +232,37 @@ class ScreenDisplay:
             self._error = exc
             log.exception("Pygame screen thread failed")
         finally:
+            self.health = {'state': 'failed' if self._error else 'stopped',
+                           'error': str(self._error) if self._error else None}
             self._ready.set()
 
     def _run(self) -> None:
         import pygame
+        with ExitStack() as resources:
+            resources.callback(self._cleanup_resource, pygame.quit)
+            pygame.init()
+            resources.callback(self._font_cache.clear)
+            self._run_initialized(pygame, resources)
+        if self._cleanup_errors:
+            raise RuntimeError('screen resource cleanup failed: ' + '; '.join(self._cleanup_errors))
+
+    def _cleanup_resource(self, action):
+        try:
+            action()
+        except Exception as exc:
+            log.exception('screen resource cleanup failed action=%r', action)
+            self._cleanup_errors.append(str(exc))
+
+    def _run_initialized(self, pygame, resources) -> None:
         from PIL import Image, ImageSequence
         from pygame._sdl2.video import Renderer, Texture, Window
 
-        pygame.init()
         self._font_cache.clear()
         started = time.monotonic()
         gif_cache: dict[tuple[str, int, int], tuple[list[Any], list[int], int]] = {}
         failed_gifs: set[str] = set()
         displays: list[tuple[ScreenConfig, Any, Any, Any, Any]] = []
+        resources.callback(displays.clear)
 
         for config in self._configs:
             window = Window(
@@ -242,6 +270,7 @@ class ScreenDisplay:
                 position=(config.x, config.y), borderless=config.borderless,
                 always_on_top=config.always_on_top,
             )
+            resources.callback(self._cleanup_resource, window.destroy)
             renderer = Renderer(window, accelerated=True, vsync=False)
             surface = pygame.Surface((config.width, config.height), pygame.SRCALPHA, 32)
             texture = Texture(renderer, (config.width, config.height), streaming=True)
@@ -250,6 +279,7 @@ class ScreenDisplay:
                 "screen window created name=%s position=%s,%s size=%sx%s fps=%s",
                 config.name, config.x, config.y, config.width, config.height, config.fps,
             )
+        self.health = {'state': 'running', 'error': None}
         self._ready.set()
 
         def gif_frame(filename: str, width: int, height: int, elapsed: float) -> Any | None:
@@ -312,10 +342,8 @@ class ScreenDisplay:
                     renderer.present()
                 clock.tick(target_fps)
         finally:
-            for _, window, _, _, _ in displays:
-                window.destroy()
+            displays.clear()
             self._font_cache.clear()
-            pygame.quit()
 
     @staticmethod
     def _draw(surface: Any, config: ScreenConfig, frame: ScreenFrame, elapsed: float,
