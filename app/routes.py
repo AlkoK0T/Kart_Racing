@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import logging
-from threading import Condition, RLock
+from threading import RLock
 
 from flask import Blueprint, current_app, jsonify, render_template, request, url_for
 
@@ -11,10 +11,14 @@ from karting import Event, Runtime
 log = logging.getLogger(__name__)
 
 web = Blueprint("web", __name__)
-_view_lock = RLock()
-_current_subview = "style1"
-_update = Condition()
-_observed_runtimes: set[int] = set()
+class WebState:
+    def __init__(self):
+        self.lock = RLock()
+        self.view = 'style1'
+
+
+def _web_state():
+    return current_app.extensions['karting_web_state']
 
 
 @web.before_request
@@ -32,34 +36,27 @@ def log_response(response):
 
 
 def _runtime() -> Runtime:
-    runtime: Runtime = current_app.extensions["karting_runtime"]
-    identity = id(runtime)
-    if identity not in _observed_runtimes:
-        runtime.bus.subscribe("data.changed", lambda event: _notify_update())
-        _observed_runtimes.add(identity)
-    return runtime
-
-
-def _notify_update() -> None:
-    with _update:
-        _update.notify_all()
+    return current_app.extensions["karting_runtime"]
 
 
 @web.route("/")
 def show_results():
-    race_item = _runtime().store.item("current_race")
+    race_item, race_revision = _runtime().store.category_snapshot('current_race')
+    web_state = _web_state()
+    with web_state.lock:
+        subview = web_state.view
     race_data = race_item.value if race_item is not None else None
     # Use the revision of the rendered snapshot, not a later store read.
     polling = dict(
-        revision=race_item.revision if race_item is not None else 0,
-        view=_current_subview,
+        revision=race_revision,
+        view=subview,
         intervalMs=max(100, current_app.config["UPDATE_TIME"]),
         updatesUrl=url_for("web.check_updates"), stateUrl=url_for("web.state"),
     )
     if race_data is None:
         return render_template("results.html", current_race=None, best_laps=[], top_pilots=[],
                                last_updated=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                               current_view="laps", current_subview=_current_subview,
+                               current_view="laps", current_subview=subview,
                                web_poll=polling,
                                error_message="Данные заездов не найдены")
     if isinstance(race_data, list):
@@ -72,11 +69,11 @@ def show_results():
         current_race=race_data.get("current_race"),
         best_laps=race_data.get("best_laps", []), top_pilots=race_data.get("top_pilots", []),
         last_updated=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        current_view=view, current_subview=_current_subview, data=race_data, error_message=None,
+        current_view=view, current_subview=subview, data=race_data, error_message=None,
         web_poll=polling,
     )
     if view == "laps":
-        template = "results_alt.html" if _current_subview == "style2" else "results.html"
+        template = "results_alt.html" if subview == "style2" else "results.html"
     elif view == "race":
         template = "v_race.html"
         context["header"] = "Гонка"
@@ -87,9 +84,10 @@ def show_results():
 
 @web.route("/api/data")
 def all_data():
-    snapshot = _runtime().store.snapshot()
+    items, _ = _runtime().store.snapshot_with_revision()
+    snapshot = {key: item.value for key, item in items.items()}
     for key in ('temperature', 'humidity'):
-        item = _runtime().store.item(key)
+        item = items.get(key)
         if item is not None and item.quality != 'good':
             snapshot[key] = None
     log.debug("HTTP API snapshot=%r", snapshot)
@@ -99,14 +97,15 @@ def all_data():
 @web.route('/api/health')
 def health():
     runtime = _runtime()
+    items, _ = runtime.store.snapshot_with_revision()
     readings = {}
     for key in ('temperature', 'humidity'):
-        item = runtime.store.item(key)
+        item = items.get(key)
         if item is not None:
             readings[key] = {'last_value': item.value, 'quality': item.quality,
                              'received_at': item.updated_at.isoformat(),
                              'source': item.source, 'revision': item.revision}
-    return jsonify({'sources': {key: value for key, value in runtime.store.snapshot().items()
+    return jsonify({'sources': {key: item.value for key, item in items.items()
                                 if key.startswith('source.')},
                     'readings': readings, 'subscribers': runtime.bus.subscriber_health()})
 
@@ -119,34 +118,26 @@ def check_updates():
     if category not in (None, "current_race"):
         return jsonify({"error": "category must be current_race or omitted"}), 400
 
-    def latest_revision():
-        if category is not None:
-            item = store.item(category)
-            return item.revision if item is not None else 0
-        return max((item.revision for key in store.snapshot() if (item := store.item(key))), default=0)
-
-    latest = latest_revision()
-    if latest <= requested:
-        with _update:
-            _update.wait(timeout=30)
-        latest = latest_revision()
+    latest = store.wait_for_revision(requested, category=category,
+                                    timeout=current_app.config.get('LONG_POLL_TIMEOUT', 30))
     return jsonify({"updated": latest > requested, "revision": latest})
 
 
 @web.route("/state", methods=["GET", "PUT"])
 def state():
-    global _current_subview
+    web_state = _web_state()
     if request.method == "GET":
-        with _view_lock:
-            return jsonify({"view": _current_subview})
+        with web_state.lock:
+            return jsonify({"view": web_state.view})
     data = request.get_json(silent=True)
     if not isinstance(data, dict) or data.get("view") not in ("style1", "style2"):
         return jsonify({"error": "JSON field 'view' must be style1 or style2"}), 400
-    with _view_lock:
-        _current_subview = data["view"]
-    log.info("web display view changed view=%s", _current_subview)
-    _runtime().bus.publish(Event("display.view", _current_subview, "web"))
-    return jsonify({"success": True, "view": _current_subview})
+    with web_state.lock:
+        web_state.view = data['view']
+        view = web_state.view
+    log.info("web display view changed view=%s", view)
+    _runtime().bus.publish(Event("display.view", view, "web"))
+    return jsonify({"success": True, "view": view})
 
 
 @web.route("/set_state")

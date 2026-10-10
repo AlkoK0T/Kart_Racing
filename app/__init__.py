@@ -13,7 +13,8 @@ def create_app(runtime: Runtime | None = None) -> Flask:
     app.config.from_object("config.Config")
     app.extensions["karting_runtime"] = runtime or Runtime()
 
-    from .routes import web
+    from .routes import web, WebState
+    app.extensions['karting_web_state'] = WebState()
     app.register_blueprint(web)
     log.info("Flask application initialized")
     return app

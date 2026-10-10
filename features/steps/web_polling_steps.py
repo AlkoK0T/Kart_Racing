@@ -1,6 +1,5 @@
 import json
 import re
-from unittest.mock import patch
 
 from behave import given, when, then
 
@@ -24,9 +23,9 @@ def update_race(context):
 
 @when('проверяют обновления только показанной гонки')
 def check_race_updates(context):
-    with patch('app.routes._update.wait', return_value=False):
-        context.response = context.client.get('/check-updates', query_string={
-            'category': 'current_race', 'revision': context.shown_race_revision})
+    context.app.config['LONG_POLL_TIMEOUT'] = 0
+    context.response = context.client.get('/check-updates', query_string={
+        'category': 'current_race', 'revision': context.shown_race_revision})
 
 
 @then('обновление гонки не обнаружено')

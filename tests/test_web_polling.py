@@ -15,7 +15,7 @@ class WebPollingTests(unittest.TestCase):
     def setUp(self):
         self.runtime = Runtime()
         self.app = create_app(self.runtime)
-        self.app.config.update(TESTING=True, UPDATE_TIME=1234)
+        self.app.config.update(TESTING=True, UPDATE_TIME=1234, LONG_POLL_TIMEOUT=0)
         self.client = self.app.test_client()
         self.previous_view = self.client.get('/state').json['view']
         self.client.put('/state', json={'view': 'style1'})
@@ -31,9 +31,8 @@ class WebPollingTests(unittest.TestCase):
         return json.loads(match.group(1))
 
     def check(self, revision, category='current_race'):
-        with patch('app.routes._update.wait', return_value=False):
-            return self.client.get('/check-updates', query_string={
-                'revision': revision, 'category': category})
+        return self.client.get('/check-updates', query_string={
+            'revision': revision, 'category': category})
 
     def test_bootstrap_uses_revision_of_rendered_race_not_clock(self):
         item = self.race()

@@ -156,6 +156,14 @@ Recovery считается завершённым не после открыт�
 `/api/data` возвращает полный снимок, а `/check-updates` использует ревизии и
 condition variable для long polling.
 
+Condition принадлежит store и использует его lock. wait_for_revision повторно
+проверяет predicate до deadline, включая ложные пробуждения. Глобальная revision
+монотонна при set, изменении качества и remove существующей категории. Ревизия
+категории сохраняется после удаления как tombstone; category_snapshot атомарно
+читает снимок и эту ревизию. data.changed содержит operation и revision.
+Подвид style1/style2 принадлежит конкретному Flask-приложению. Глобальных
+Condition, списка id runtime и ленивых подписок больше нет.
+
 ## Pygame-индикация
 
 ### Lifecycle

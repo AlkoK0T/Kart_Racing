@@ -5,7 +5,7 @@ from copy import deepcopy
 import logging
 from datetime import datetime, timezone
 from queue import Empty, Full, Queue
-from threading import Event as ThreadEvent, RLock, Thread, current_thread
+from threading import Condition, Event as ThreadEvent, RLock, Thread, current_thread
 from typing import Any, Callable, Protocol
 
 log = logging.getLogger(__name__)
@@ -175,6 +175,25 @@ class DataStore:
         self._values: dict[str, DataValue] = {}
         self._revision = 0
         self._lock = RLock()
+        self._changed = Condition(self._lock)
+        self._category_revisions: dict[str, int] = {}
+
+    @property
+    def revision(self) -> int:
+        with self._lock:
+            return self._revision
+
+    def category_snapshot(self, key: str) -> tuple[DataValue | None, int]:
+        with self._lock:
+            return deepcopy(self._values.get(key)), self._category_revisions.get(key, 0)
+
+    def wait_for_revision(self, requested: int, *, category: str | None = None,
+                          timeout: float = 30) -> int:
+        def latest():
+            return self._revision if category is None else self._category_revisions.get(category, 0)
+        with self._changed:
+            self._changed.wait_for(lambda: latest() > requested, timeout=max(0, timeout))
+            return latest()
 
     def set(self, key: str, value: Any, *, source: str = "unknown") -> DataValue:
         value = deepcopy(value)
@@ -182,9 +201,12 @@ class DataStore:
             self._revision += 1
             item = DataValue(value, datetime.now(timezone.utc), source, self._revision)
             self._values[key] = item
+            self._category_revisions[key] = item.revision
+            self._changed.notify_all()
         log.debug("store set key=%s source=%s revision=%d value=%r", key, source, item.revision, value)
         self._bus.publish(Event(f"data.{key}", item, source))
-        self._bus.publish(Event("data.changed", {"key": key, "item": item}, source))
+        self._bus.publish(Event("data.changed", {"key": key, "item": item,
+                                'operation': 'set', 'revision': item.revision}, source))
         return deepcopy(item)
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -203,9 +225,12 @@ class DataStore:
             self._revision += 1
             item = replace(old, quality=quality, revision=self._revision)
             self._values[key] = item
+            self._category_revisions[key] = item.revision
+            self._changed.notify_all()
         log.info('store quality changed key=%s source=%s quality=%s revision=%s', key, owner, quality, item.revision)
         self._bus.publish(Event(f'data.{key}', item, owner))
-        self._bus.publish(Event('data.changed', {'key': key, 'item': item}, owner))
+        self._bus.publish(Event('data.changed', {'key': key, 'item': item,
+                                'operation': 'quality', 'revision': item.revision}, owner))
         return True
 
     def item(self, key: str) -> DataValue | None:
@@ -220,9 +245,16 @@ class DataStore:
     def remove(self, key: str, *, source: str = "system") -> None:
         with self._lock:
             existed = self._values.pop(key, None)
+            if existed is not None:
+                self._revision += 1
+                revision = self._revision
+                self._category_revisions[key] = revision
+                self._changed.notify_all()
         if existed is not None:
             log.debug("store remove key=%s source=%s previous=%r", key, source, existed.value)
             self._bus.publish(Event("data.removed", key, source))
+            self._bus.publish(Event('data.changed', {'key': key, 'item': None,
+                                    'operation': 'remove', 'revision': revision}, source))
 
     def snapshot(self) -> dict[str, Any]:
         values, _ = self.snapshot_with_revision()
