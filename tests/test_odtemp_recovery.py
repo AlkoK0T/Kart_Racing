@@ -39,7 +39,7 @@ class RecoveryDevice:
     def reset_input_buffer(self):
         pass
 
-    def readline(self):
+    def readline(self, size=-1):
         if self.fail:
             raise OSError('USB disconnected')
         return b'~G23.5\n'

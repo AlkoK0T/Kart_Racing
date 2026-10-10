@@ -74,7 +74,8 @@ class SensorQualityTests(unittest.TestCase):
             lambda event: observed.append((event.payload.value['state'], self.store.item('temperature').quality)))
         self.source._port = 'TEST'
         self.source._stop = MagicMock()
-        self.source._stop.is_set.side_effect = [False, False, True]
+        self.source._stop.is_set.return_value = False
+        self.source._stop.wait.side_effect = lambda interval: setattr(self.source._stop.is_set, 'return_value', True)
         device = MagicMock()
         device.__enter__.return_value = device
         device.readline.return_value = b''

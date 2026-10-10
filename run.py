@@ -36,6 +36,7 @@ def build_runtime() -> Runtime:
             stream_interval_ms=Config.ODTEMP_STREAM_INTERVAL_MS,
             watchdog_timeout=Config.ODTEMP_WATCHDOG_TIMEOUT,
             reconnect_interval=Config.ODTEMP_RECONNECT_INTERVAL,
+            serial_number=Config.ODTEMP_SERIAL_NUMBER,
         ))
 
     # Display modules consume the same store and events as the web application.

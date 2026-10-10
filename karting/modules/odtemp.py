@@ -16,14 +16,15 @@ _MEASUREMENT = re.compile(r"^~G\s*(-?\d+(?:[.,]\d+)?)(?:;(-?\d+(?:[.,]\d+)?))?$"
 
 def find_odtemp_port(
     ports: Iterable[Any], vid: int = 0x0483, pid: int = 0xA26A,
-    explicit_port: str = "",
+    explicit_port: str = "", serial_number: str = '',
 ) -> str | None:
     if explicit_port:
         return explicit_port
-    for port in ports:
-        if port.vid == vid and port.pid == pid:
-            return str(port.device)
-    return None
+    matches = [port for port in ports if port.vid == vid and port.pid == pid
+               and (not serial_number or getattr(port, 'serial_number', None) == serial_number)]
+    if len(matches) > 1:
+        raise OSError('ambiguous ODTEMP devices; configure serial number or explicit port')
+    return str(matches[0].device) if matches else None
 
 
 def parse_odtemp_line(line: str) -> tuple[float, float | None] | None:
@@ -51,17 +52,24 @@ class ODTempSource:
         pid: int = 0xA26A, baudrate: int = 9600,
         stream_interval_ms: int = 2000, watchdog_timeout: float = 120.0,
         reconnect_interval: float = 60.0,
+        serial_number: str = '',
     ) -> None:
         self._store = store
         self._port = port
         self._vid = vid
         self._pid = pid
         self._baudrate = baudrate
+        self._serial_number = serial_number
         self._stream_interval_ms = max(200, stream_interval_ms)
         self._watchdog_timeout = max(1.0, watchdog_timeout)
         self._reconnect_interval = max(1.0, reconnect_interval)
         self._stop = ThreadEvent()
         self._thread: Thread | None = None
+        self._line_device = None
+        self._pending_line = bytearray()
+        self._discarding_line = False
+        if self._stream_interval_ms * 2 > self._watchdog_timeout * 1000:
+            raise ValueError('ODTEMP configured stream period must not exceed half the watchdog timeout')
 
     def start(self) -> None:
         if already_running(self):
@@ -114,13 +122,14 @@ class ODTempSource:
             port = None
             try:
                 port = find_odtemp_port(
-                    () if self._port else list_ports.comports(), self._vid, self._pid, self._port
+                    () if self._port else list_ports.comports(), self._vid, self._pid, self._port,
+                    self._serial_number,
                 )
                 if not port:
                     raise OSError('ODTEMP device not found')
                 log.info("ODTEMP port selected port=%s", port)
                 with serial.Serial(
-                    port, self._baudrate, timeout=1, write_timeout=1
+                    port, self._baudrate, timeout=0.25, write_timeout=1
                 ) as device:
                     device.reset_input_buffer()
                     identification = self._identify(device)
@@ -139,11 +148,7 @@ class ODTempSource:
                     )
                     last_measurement = time.monotonic()
                     while not self._stop.is_set():
-                        measurement = parse_odtemp_line(
-                            (raw := device.readline().decode("ascii", errors="replace"))
-                        )
-                        if raw:
-                            log.debug("ODTEMP received port=%s raw=%r", port, raw.strip())
+                        measurement = parse_odtemp_line(self._read_line(device))
                         if measurement is not None:
                             last_measurement = time.monotonic()
                             temperature, humidity = measurement
@@ -177,6 +182,8 @@ class ODTempSource:
                                 f"no ODTEMP measurements for {self._watchdog_timeout:g} seconds"
                             )
             except (OSError, serial.SerialException, TimeoutError) as exc:
+                if self._stop.is_set():
+                    break
                 log.warning(
                     "ODTEMP connection lost port=%s error=%s; reinitialization in %ss",
                     port, exc, self._reconnect_interval,
@@ -190,17 +197,20 @@ class ODTempSource:
         self._store.remove('odtemp_device', source=self.name)
         self._status('stopped')
 
-    @staticmethod
-    def _identify(device: Any) -> str:
+    def _identify(self, device: Any) -> str:
+        if self._stop.is_set():
+            raise InterruptedError('ODTEMP initialization stopped')
         log.debug("ODTEMP send command='~I'")
         device.write(b"~I\n")
         device.flush()
-        answer = ODTempSource._read_prefixed(device, "~I", 3)
-        if not answer:
+        answer = self._read_prefixed(device, "~I", 3)
+        if not answer or not answer[2:].strip():
             raise TimeoutError("ODTEMP did not answer ~I")
         return answer[2:] if answer.startswith("~I") else answer
 
     def _ensure_stream(self, device: Any) -> int:
+        if self._stop.is_set():
+            raise InterruptedError('ODTEMP initialization stopped')
         log.debug("ODTEMP send command='~F'")
         device.write(b"~F\n")
         device.flush()
@@ -209,10 +219,10 @@ class ODTempSource:
             current = int(answer[2:]) if answer else 0
         except ValueError:
             current = 0
-        if current > 0:
+        if self._valid_period(current):
             log.info("ODTEMP automatic stream already enabled period=%dms", current)
             return current
-        log.info("ODTEMP automatic stream is disabled; enabling period=%dms", self._stream_interval_ms)
+        log.info("ODTEMP automatic stream is disabled or too slow; enabling period=%dms", self._stream_interval_ms)
         log.debug("ODTEMP send command='~W%d'", self._stream_interval_ms)
         device.write(f"~W{self._stream_interval_ms}\n".encode("ascii"))
         device.flush()
@@ -220,15 +230,55 @@ class ODTempSource:
         if not answer:
             raise TimeoutError("ODTEMP did not confirm automatic streaming")
         try:
-            return int(answer[2:])
+            confirmed = int(answer[2:])
         except (ValueError, IndexError) as exc:
             raise TimeoutError("ODTEMP returned an invalid stream period") from exc
+        if not self._valid_period(confirmed):
+            raise TimeoutError('ODTEMP confirmed a zero/negative period or one incompatible with watchdog')
+        return confirmed
 
-    @staticmethod
-    def _read_prefixed(device: Any, prefix: str, timeout: float) -> str:
+    def _valid_period(self, period):
+        return period > 0 and period * 2 <= self._watchdog_timeout * 1000
+
+    def _read_line(self, device):
+        if self._line_device is not device:
+            self._line_device = device
+            self._pending_line.clear()
+            self._discarding_line = False
+        if self._stop.is_set():
+            return ''
+        raw = device.readline(4097)
+        if raw:
+            log.debug('ODTEMP received port=%s raw=%r', getattr(device, 'port', self._port), raw)
+        if self._discarding_line:
+            self._discarding_line = not raw.endswith(b'\n')
+            return ''
+        self._pending_line.extend(raw)
+        if len(self._pending_line) > 4096:
+            self._pending_line.clear()
+            self._discarding_line = not raw.endswith(b'\n')
+            log.warning('ODTEMP discarded oversized line')
+            return ''
+        if not raw.endswith(b'\n'):
+            return ''
+        line = bytes(self._pending_line)
+        self._pending_line.clear()
+        try:
+            return line.decode('ascii').strip()
+        except UnicodeDecodeError:
+            log.debug('ODTEMP discarded non-ASCII line raw=%r', line)
+            return ''
+
+    def _read_prefixed(self, device: Any, prefix: str, timeout: float) -> str:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            line = device.readline().decode("ascii", errors="replace").strip()
+            if self._stop.is_set():
+                raise InterruptedError('ODTEMP command wait stopped')
+            line = self._read_line(device)
+            if self._stop.is_set():
+                raise InterruptedError('ODTEMP command wait stopped')
             if line.startswith(prefix):
                 return line
+            if line:
+                log.debug('ODTEMP discarded command response expected=%s line=%r', prefix, line)
         return ""

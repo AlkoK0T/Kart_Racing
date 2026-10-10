@@ -492,7 +492,7 @@ class _ODTempDevice:
     def flush(self):
         pass
 
-    def readline(self):
+    def readline(self, size=-1):
         return self.answers.popleft() if self.answers else b""
 
 

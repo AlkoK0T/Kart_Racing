@@ -14,6 +14,7 @@ class Config:
     SERIAL_BAUDRATE = int(os.getenv('SERIAL_BAUDRATE', 9600))
     ODTEMP_ENABLED = os.getenv('ODTEMP_ENABLED', 'True').lower() == 'true'
     ODTEMP_PORT = os.getenv('ODTEMP_PORT', '')
+    ODTEMP_SERIAL_NUMBER = os.getenv('ODTEMP_SERIAL_NUMBER', '')
     ODTEMP_VID = int(os.getenv('ODTEMP_VID', '0483'), 16)
     ODTEMP_PID = int(os.getenv('ODTEMP_PID', 'A26A'), 16)
     ODTEMP_STREAM_INTERVAL_MS = int(os.getenv('ODTEMP_STREAM_INTERVAL_MS', 2000))

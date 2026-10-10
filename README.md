@@ -262,6 +262,7 @@ Pillow один раз декодирует и масштабирует GIF. Pyg
 | `SERIAL_BAUDRATE` | `9600` | скорость RS-232 |
 | `ODTEMP_ENABLED` | `True` | автоопрос ODTEMP |
 | `ODTEMP_PORT` | пусто | ручной порт или автоматический поиск |
+| `ODTEMP_SERIAL_NUMBER` | пусто | серийный номер USB для выбора одного из нескольких ODTEMP |
 | `ODTEMP_VID` | `0483` | USB VID в hexadecimal |
 | `ODTEMP_PID` | `A26A` | USB PID в hexadecimal |
 | `ODTEMP_STREAM_INTERVAL_MS` | `2000` | период, включаемый при выключенном потоке |
