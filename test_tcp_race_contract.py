@@ -24,7 +24,8 @@ class TcpRaceContractTests(unittest.TestCase):
             }
             with socket.create_connection(source._server.server_address, timeout=2) as client:
                 client.sendall(json.dumps(message).encode("utf-8") + b"\n")
-                response = json.loads(client.makefile("rb").readline())
+                with client.makefile('rb') as reader:
+                    response = json.loads(reader.readline())
             self.assertEqual({"ok": True}, response)
             race = store.get("current_race")
             self.assertEqual("race-42", race["race_id"])

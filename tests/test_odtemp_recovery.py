@@ -46,6 +46,20 @@ class RecoveryDevice:
 
 
 class ODTempRecoveryTests(unittest.TestCase):
+    def test_full_watchdog_redetect_reinitialize_and_first_reading_restored(self):
+        from test_support.odtemp_cycle import watchdog_recovery_cycle
+        result = watchdog_recovery_cycle()
+        self.assertEqual([60], result.waits)
+        self.assertEqual(['COM12', 'COM14'], result.opened)
+        self.assertEqual(2, result.detects)
+        self.assertIn((22, 'stale'), result.readings)
+        self.assertIn((23.5, 'good'), result.readings)
+        self.assertTrue(all(device.closed for device in result.devices))
+        self.assertTrue(all(device.commands == [b'~I\n', b'~F\n'] for device in result.devices))
+        self.assertEqual(['starting', 'waiting_measurement', 'online', 'reconnecting',
+                          'waiting_measurement', 'online', 'stopped'], result.states)
+        self.assertEqual(1, sum('reading restored' in message for message in result.messages))
+
     def setUp(self):
         self.runtime = Runtime()
         self.source = ODTempSource(self.runtime.store)

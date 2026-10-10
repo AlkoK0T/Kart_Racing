@@ -330,17 +330,19 @@ DEBUG содержит имена участников и исходные да�
 ## Тестирование
 
 ```powershell
-.\.venv\Scripts\python.exe -m behave
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe run_tests.py
 ```
 
-Текущий набор: 9 features, 67 сценариев и 291 Behave-шаг. Проверяются ядро,
+Единая команда запускает весь unit-набор, корневой TCP-контракт и Behave.
+Текущий набор: 12 features, 73 сценария и 321 Behave-шаг. Проверяются ядро,
 lifecycle, YAML, TCP, имитация RS-232, Flask, экранный планировщик, GIF-настройки и
 сборка кадра на `pygame.Surface`.
 
-57 unit-тестов проверяют в том числе общий контракт, ограничения входа,
-совместимость YAML, отказ без изменения store и последующий приём корректных
-сообщений. Отдельно запускается `test_tcp_race_contract.py`.
+181 unit-проверка: 178 успешно, 3 Delphi opt-in skipped без DELPHI_DCC32.
+Проверяются контракт, лимиты, retry/watchdog/hotplug, lifecycle, конкурентные
+обновления, частичная очистка SDL, GIF-бюджеты, COM CSV и журналирование.
+test_tcp_race_contract.py теперь входит в общую команду. Для отдельного unit-запуска:
+`python run_tests.py --unit-only`. Команда работает из другого cwd.
 
 Unit-набор также запускает 12 регрессий общего JavaScript-контроллера, если
 установлен Node.js. При его отсутствии этот тест явно отмечается как skipped.
@@ -352,6 +354,8 @@ node --test tests/js/test_polling.cjs
 ```
 
 Ход исправления замечаний ревью: [REVIEW_PROGRESS.md](REVIEW_PROGRESS.md).
+Реальный браузер, три нативных SDL-окна, нагрузка, USB и Delphi — отдельная
+явная приёмка: [SMOKE_TESTS.md](SMOKE_TESTS.md). Обычный набор не открывает железо.
 
 ## Инвентаризация COM-портов
 
