@@ -11,7 +11,7 @@ from pathlib import Path
 from threading import Event as ThreadEvent, Thread
 from typing import Any
 
-import yaml
+from karting.ingestion import parse_yaml
 
 from karting.core import DataStore, EventBus
 from karting.lifecycle import already_running, join_worker
@@ -41,8 +41,29 @@ class ScreenConfig:
     background_daily_record: str = "previous"
 
     def __post_init__(self):
-        if type(self.fps) is not int or self.fps <= 0:
-            raise ValueError('screen fps must be a positive integer')
+        for name in ('x', 'y', 'width', 'height', 'fps'):
+            if type(getattr(self, name)) is not int:
+                raise ValueError(f'screen {name}: must be an integer')
+        if not 16 <= self.width <= 4096 or not 16 <= self.height <= 4096 or self.width * self.height > 4 * 1024 * 1024:
+            raise ValueError('screen size: dimensions 16..4096 and at most 4 million pixels')
+        if not 1 <= self.fps <= 120:
+            raise ValueError('screen fps: must be an integer from 1 to 120')
+        for name in ('top_interval', 'message_interval'):
+            value = getattr(self, name)
+            if type(value) not in (int, float) or not math.isfinite(value) or not 0 < value <= 86400:
+                raise ValueError(f'screen {name}: must be finite and between 0 and 86400')
+        if self.record_category not in ('children', 'women', 'men'):
+            raise ValueError('screen record_category: must be children/women/men')
+        for name in ('name', 'record_label', 'background_time_temperature', 'background_daily_record'):
+            value = getattr(self, name)
+            if not isinstance(value, str) or len(value) > 4096:
+                raise ValueError(f'screen {name}: must be a bounded string')
+        if not self.name.strip():
+            raise ValueError('screen name: must be non-empty')
+        if not isinstance(self.messages, tuple) or len(self.messages) > 64 or any(not isinstance(value, str) or len(value) > 4096 for value in self.messages):
+            raise ValueError('screen messages: must be a tuple/list of at most 64 strings')
+        if type(self.borderless) is not bool or type(self.always_on_top) is not bool:
+            raise ValueError('screen flags: must be booleans')
 
 
 @dataclass(slots=True)
@@ -54,17 +75,29 @@ class ScreenFrame:
 
 
 def load_screen_configs(path: str | Path) -> list[ScreenConfig]:
-    with Path(path).open(encoding="utf-8") as stream:
-        document = yaml.safe_load(stream) or {}
+    with Path(path).open('rb') as stream:
+        document = parse_yaml(stream.read(1024 * 1024 + 1))
+    if not isinstance(document, dict) or not isinstance(document.get('defaults', {}), dict) or not isinstance(document.get('screens'), list):
+        raise ValueError('screen configuration: expected defaults object and screens list')
     defaults = document.get("defaults", {})
     result: list[ScreenConfig] = []
     for index, screen in enumerate(document.get("screens", []), 1):
+        if not isinstance(screen, dict):
+            raise ValueError(f'screen #{index}: must be an object')
         values = {**defaults, **screen}
         values["name"] = values.get("name", f"screen-{index}")
-        values["messages"] = tuple(values.get("messages", ()))
-        result.append(ScreenConfig(**values))
+        messages = values.get('messages', ())
+        if not isinstance(messages, (tuple, list)):
+            raise ValueError(f'screen #{index} messages: must be a list of strings, not a string')
+        values['messages'] = tuple(messages)
+        try:
+            result.append(ScreenConfig(**values))
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f'screen #{index}: {exc}') from exc
     if len(result) != 3:
         raise ValueError("Screen configuration must contain exactly 3 screens")
+    if len({config.name for config in result}) != 3:
+        raise ValueError('screen names must be unique')
     log.info("screen configuration loaded path=%s screens=%d", path, len(result))
     log.debug("screen configuration values=%r", result)
     return result

@@ -5,6 +5,11 @@
 `run.py` — composition root: участие модуля определяется вызовом
 `runtime.add(...)` только в этом файле.
 
+main() читает/проверяет Config.from_env и настраивает журнал. Импорт run не
+создаёт runtime или Flask app, не читает screens.yaml и не меняет logging.
+Фабрики создают систему явно, но не запускают worker. Относительные пути основных
+настроек разрешаются от каталога проекта; GIF-пути — от каталога screen-config.
+
 ```text
 FileSource ──┐
 ClockSource ─┼──> DataStore ──> EventBus ──┬──> ScreenDisplay (3 окна)

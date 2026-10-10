@@ -48,6 +48,14 @@ $env:DISPLAY_ENABLED="False"
 
 Flask reloader отключён, иначе источники и окна запускались бы дважды.
 
+Относительные DATA_FOLDER, DISPLAY_CONFIG и LOG_FILE привязаны к каталогу проекта,
+а GIF — к каталогу screens.yaml. Config.from_env() проверяет параметры до запуска
+потоков; некорректные значения дают именованную ошибку. Импорт run не создаёт
+runtime/приложение и не меняет logging. Явные фабрики — build_runtime(config),
+create_application(config), create_web_app(); запуск — main().
+run.cmd использует Python из локальной .venv и сохраняет заданный DATA_FOLDER;
+если он не задан, оставлен прежний каталог внешней системы сбора данных.
+
 ## Данные
 
 В текущей гонке пустой массив кругов сохраняется как `[]`, число кругов равно
@@ -254,10 +262,14 @@ Pillow один раз декодирует и масштабирует GIF. Pyg
 | `DATA_FOLDER` | `data` | корень файловых категорий |
 | `PORT` | `5000` | порт Flask |
 | `DEBUG` | `False` | отладка Flask |
+| `KART_DEBUG` | не задан | приоритетная отладка Flask; избегает конфликтов с системным DEBUG |
 | `FILE_POLL_INTERVAL` | `1` | проверка файлов, секунд |
 | `TCP_ENABLED` | `True` | TCP-источник |
 | `TCP_HOST` | `127.0.0.1` | адрес TCP-сервера |
 | `TCP_PORT` | `8765` | порт TCP-сервера |
+| `TCP_MAX_CLIENTS` | `16` | максимум TCP-клиентов |
+| `TCP_CLIENT_TIMEOUT` | `30` | idle timeout, секунд |
+| `TCP_FRAME_TIMEOUT` | `10` | абсолютный deadline начатой строки, секунд |
 | `SERIAL_PORT` | пусто | COM-порт; пусто — выключен |
 | `SERIAL_BAUDRATE` | `9600` | скорость RS-232 |
 | `SERIAL_RECONNECT_INTERVAL` | `60` | повтор открытия/автодетекта RS-232, секунд |

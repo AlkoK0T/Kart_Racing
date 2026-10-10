@@ -8,9 +8,10 @@ from karting.core import Runtime
 log = logging.getLogger(__name__)
 
 
-def create_app(runtime: Runtime | None = None) -> Flask:
+def create_app(runtime: Runtime | None = None, *, config=None) -> Flask:
     app = Flask(__name__)
-    app.config.from_object("config.Config")
+    from config import Config
+    app.config.from_object(config or Config.from_env())
     app.extensions["karting_runtime"] = runtime or Runtime()
 
     from .routes import web, WebState

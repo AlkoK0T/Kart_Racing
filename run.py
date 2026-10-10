@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import atexit
 import logging
+import sys
 
 from app import create_app
 from config import Config
@@ -13,50 +14,56 @@ from karting.modules import (
     ClockSource, FileSource, ODTempSource, ScreenDisplay, SerialSource, TcpJsonSource,
 )
 
-configure_logging(
-    Config.LOG_LEVEL, Config.LOG_FILE, Config.LOG_MAX_BYTES, Config.LOG_BACKUP_COUNT
-)
 log = logging.getLogger(__name__)
 
 
-def build_runtime() -> Runtime:
+def build_runtime(config=None) -> Runtime:
+    config = config or Config.from_env()
     runtime = Runtime()
     ingestion = DataIngestor(runtime.store)
 
     # Data acquisition modules. Comment/remove a line to exclude a module.
-    runtime.add(FileSource(runtime.store, Config.DATA_FOLDER, Config.FILE_POLL_INTERVAL, ingestor=ingestion))
+    runtime.add(FileSource(runtime.store, config.DATA_FOLDER, config.FILE_POLL_INTERVAL, ingestor=ingestion))
     runtime.add(ClockSource(runtime.store))
-    if Config.TCP_ENABLED:
-        runtime.add(TcpJsonSource(runtime.store, Config.TCP_HOST, Config.TCP_PORT, ingestor=ingestion))
-    if Config.SERIAL_PORT or Config.SERIAL_VID is not None:
-        runtime.add(SerialSource(runtime.store, Config.SERIAL_PORT, Config.SERIAL_BAUDRATE, ingestor=ingestion,
-                                 reconnect_interval=Config.SERIAL_RECONNECT_INTERVAL,
-                                 vid=Config.SERIAL_VID, pid=Config.SERIAL_PID, serial_number=Config.SERIAL_NUMBER))
-    if Config.ODTEMP_ENABLED:
+    if config.TCP_ENABLED:
+        runtime.add(TcpJsonSource(runtime.store, config.TCP_HOST, config.TCP_PORT, ingestor=ingestion,
+                                 max_clients=config.TCP_MAX_CLIENTS, client_timeout=config.TCP_CLIENT_TIMEOUT,
+                                 frame_timeout=config.TCP_FRAME_TIMEOUT))
+    if config.SERIAL_PORT or config.SERIAL_VID is not None:
+        runtime.add(SerialSource(runtime.store, config.SERIAL_PORT, config.SERIAL_BAUDRATE, ingestor=ingestion,
+                                 reconnect_interval=config.SERIAL_RECONNECT_INTERVAL,
+                                 vid=config.SERIAL_VID, pid=config.SERIAL_PID, serial_number=config.SERIAL_NUMBER))
+    if config.ODTEMP_ENABLED:
         runtime.add(ODTempSource(
-            runtime.store, Config.ODTEMP_PORT, Config.ODTEMP_VID, Config.ODTEMP_PID,
-            stream_interval_ms=Config.ODTEMP_STREAM_INTERVAL_MS,
-            watchdog_timeout=Config.ODTEMP_WATCHDOG_TIMEOUT,
-            reconnect_interval=Config.ODTEMP_RECONNECT_INTERVAL,
-            serial_number=Config.ODTEMP_SERIAL_NUMBER,
+            runtime.store, config.ODTEMP_PORT, config.ODTEMP_VID, config.ODTEMP_PID,
+            stream_interval_ms=config.ODTEMP_STREAM_INTERVAL_MS,
+            watchdog_timeout=config.ODTEMP_WATCHDOG_TIMEOUT,
+            reconnect_interval=config.ODTEMP_RECONNECT_INTERVAL,
+            serial_number=config.ODTEMP_SERIAL_NUMBER,
         ))
 
     # Display modules consume the same store and events as the web application.
-    if Config.DISPLAY_ENABLED:
-        runtime.add(ScreenDisplay(runtime.store, runtime.bus, Config.DISPLAY_CONFIG, timezone=Config.CENTRE_TIMEZONE))
+    if config.DISPLAY_ENABLED:
+        runtime.add(ScreenDisplay(runtime.store, runtime.bus, config.DISPLAY_CONFIG, timezone=config.CENTRE_TIMEZONE))
 
     # Flask is the first display. Screen compositors subscribe to the same bus.
     return runtime
 
 
-runtime = build_runtime()
-app = create_app(runtime)
+def create_application(config=None):
+    config = config or Config.from_env()
+    runtime = build_runtime(config)
+    return runtime, create_app(runtime, config=config)
+
+
+def create_web_app():
+    return create_application()[1]
 
 
 def run_server(runtime, app):
     try:
         runtime.start()
-        app.run(host='0.0.0.0', port=Config.PORT, debug=Config.DEBUG, use_reloader=False)
+        app.run(host='0.0.0.0', port=app.config['PORT'], debug=app.config['DEBUG'], use_reloader=False)
     except BaseException:
         try:
             runtime.close()
@@ -67,12 +74,24 @@ def run_server(runtime, app):
         runtime.close()
 
 
-if __name__ == "__main__":
+def main():
+    try:
+        config = Config.from_env()
+        runtime, app = create_application(config)
+    except (ValueError, OSError) as exc:
+        print(f'Configuration error: {exc}', file=sys.stderr)
+        return 2
+    configure_logging(config.LOG_LEVEL, config.LOG_FILE, config.LOG_MAX_BYTES, config.LOG_BACKUP_COUNT)
     log.info(
         "Kart Racing starting web=0.0.0.0:%d data=%s displays=%s tcp=%s odtemp=%s",
-        Config.PORT, Config.DATA_FOLDER, Config.DISPLAY_ENABLED,
-        Config.TCP_ENABLED, Config.ODTEMP_ENABLED,
+        config.PORT, config.DATA_FOLDER, config.DISPLAY_ENABLED,
+        config.TCP_ENABLED, config.ODTEMP_ENABLED,
     )
     atexit.register(runtime.close)
-    log.info("web application listening address=0.0.0.0:%d", Config.PORT)
+    log.info("web application listening address=0.0.0.0:%d", config.PORT)
     run_server(runtime, app)
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
