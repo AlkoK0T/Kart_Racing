@@ -17,6 +17,7 @@ from karting.core import DataStore, EventBus
 from karting.lifecycle import already_running, join_worker
 from karting.timezones import display_timezone
 from karting.render_cache import SurfaceCache, WindowSchedule, frame_signature
+from karting.gif_assets import GifAssets
 
 log = logging.getLogger(__name__)
 
@@ -266,13 +267,12 @@ class ScreenDisplay:
             self._cleanup_errors.append(str(exc))
 
     def _run_initialized(self, pygame, resources) -> None:
-        from PIL import Image, ImageSequence
         from pygame._sdl2.video import Renderer, Texture, Window
 
         self._font_cache.clear()
         started = time.monotonic()
-        gif_cache: dict[tuple[str, int, int], tuple[list[Any], list[int], int]] = {}
-        failed_gifs: set[str] = set()
+        gifs = GifAssets(self._config_dir, pygame.image.fromstring)
+        resources.callback(self._cleanup_resource, gifs.close)
         displays: list[tuple[ScreenConfig, Any, Any, Any, Any]] = []
         resources.callback(displays.clear)
 
@@ -293,45 +293,6 @@ class ScreenDisplay:
             )
         self.health = {'state': 'running', 'error': None}
         self._ready.set()
-
-        def gif_frame(filename: str, width: int, height: int, elapsed: float) -> Any | None:
-            if not filename:
-                return None
-            path = Path(filename)
-            if not path.is_absolute():
-                path = self._config_dir / path
-            key = (str(path), width, height)
-            if key not in gif_cache and str(path) not in failed_gifs:
-                try:
-                    frames: list[Any] = []
-                    durations: list[int] = []
-                    total = 0
-                    with Image.open(path) as image:
-                        for source in ImageSequence.Iterator(image):
-                            resized = source.convert("RGBA").resize(
-                                (width, height), Image.Resampling.LANCZOS
-                            )
-                            frames.append(pygame.image.fromstring(
-                                resized.tobytes(), resized.size, "RGBA"
-                            ))
-                            total += max(20, int(source.info.get("duration", 100)))
-                            durations.append(total)
-                    if not frames:
-                        raise ValueError("GIF has no frames")
-                    gif_cache[key] = (frames, durations, total)
-                    log.info("GIF loaded path=%s frames=%d duration_ms=%d", path, len(frames), total)
-                except (OSError, ValueError):
-                    failed_gifs.add(str(path))
-                    log.warning("GIF unavailable path=%s; using procedural effect", path)
-            animation = gif_cache.get(key)
-            if animation is None:
-                return None
-            frames, durations, total = animation
-            position = int(elapsed * 1000) % total
-            for index, boundary in enumerate(durations):
-                if position < boundary:
-                    return frames[index]
-            return frames[-1]
 
         clock = pygame.time.Clock()
         target_fps = max(config.fps for config in self._configs)
@@ -354,7 +315,7 @@ class ScreenDisplay:
                     if previous_content.get(config.name) != frame:
                         log.debug('screen content changed name=%s content=%r', config.name, frame)
                         previous_content[config.name] = frame
-                    background = gif_frame(
+                    background = gifs.frame(
                         frame.background, config.width, config.height // 2, elapsed
                     )
                     signature = frame_signature(frame, background)
