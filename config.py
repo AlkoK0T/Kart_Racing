@@ -26,6 +26,7 @@ class Config:
     ODTEMP_RECONNECT_INTERVAL = float(os.getenv('ODTEMP_RECONNECT_INTERVAL', 60))
     DISPLAY_ENABLED = os.getenv('DISPLAY_ENABLED', 'True').lower() == 'true'
     DISPLAY_CONFIG = os.getenv('DISPLAY_CONFIG', 'screens.yaml')
+    CENTRE_TIMEZONE = os.getenv('CENTRE_TIMEZONE', 'local')
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FILE = os.getenv('LOG_FILE', 'karting.log')
     LOG_MAX_BYTES = int(os.getenv('LOG_MAX_BYTES', 5 * 1024 * 1024))

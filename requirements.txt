@@ -5,3 +5,4 @@ pyserial==3.5
 behave==1.2.6
 Pillow==10.4.0
 pygame==2.6.1
+tzdata>=2024.1

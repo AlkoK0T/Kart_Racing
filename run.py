@@ -43,7 +43,7 @@ def build_runtime() -> Runtime:
 
     # Display modules consume the same store and events as the web application.
     if Config.DISPLAY_ENABLED:
-        runtime.add(ScreenDisplay(runtime.store, runtime.bus, Config.DISPLAY_CONFIG))
+        runtime.add(ScreenDisplay(runtime.store, runtime.bus, Config.DISPLAY_CONFIG, timezone=Config.CENTRE_TIMEZONE))
 
     # Flask is the first display. Screen compositors subscribe to the same bus.
     return runtime

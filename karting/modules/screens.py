@@ -13,6 +13,7 @@ import yaml
 
 from karting.core import DataStore, EventBus
 from karting.lifecycle import already_running, join_worker
+from karting.timezones import display_timezone
 
 log = logging.getLogger(__name__)
 
@@ -64,24 +65,47 @@ def load_screen_configs(path: str | Path) -> list[ScreenConfig]:
 class ContentPlanner:
     """Pure presentation logic, kept independent from the GUI for testing."""
 
-    def __init__(self, store: DataStore) -> None:
+    def __init__(self, store: DataStore, *, timezone: str = 'local', now=None) -> None:
         self._store = store
+        self._timezone = display_timezone(timezone)
+        self._now = now or (lambda: datetime.now().astimezone())
+
+    def current_records(self, key='records_day', *, now=None):
+        item = self._store.item(key)
+        if item is None or item.quality != 'good':
+            return {}
+        now = (now or self._now()).astimezone(self._timezone)
+        records = item.value
+        period = 'date' if key == 'records_day' else 'month'
+        pattern = '%Y-%m-%d' if period == 'date' else '%Y-%m'
+        supplied = records.get(period) if isinstance(records, dict) else None
+        actual = str(supplied) if supplied is not None else item.updated_at.astimezone(self._timezone).strftime(pattern)
+        return records if actual == now.strftime(pattern) else {}
 
     def frame(self, config: ScreenConfig, elapsed: float) -> ScreenFrame:
+        now = self._now().astimezone(self._timezone)
         top_page = int(elapsed / max(config.top_interval, 0.1)) % 2
         if top_page == 0:
-            current = self._store.get("current_time") or datetime.now().astimezone()
+            clock = self._store.item('current_time')
+            current = clock.value if clock is not None and (now - clock.updated_at).total_seconds() <= 3 else now
+            if isinstance(current, str):
+                try:
+                    current = datetime.fromisoformat(current.replace('Z', '+00:00'))
+                except ValueError:
+                    pass
             if isinstance(current, datetime):
+                if current.tzinfo is not None:
+                    current = current.astimezone(self._timezone)
                 current_text = current.strftime("%H:%M:%S")
             else:
                 current_text = str(current)
             item = self._store.item('temperature')
-            temperature = item.value if item is not None and item.quality == 'good' else '—'
+            temperature = item.value if item is not None and item.quality == 'good' and (now - item.updated_at).total_seconds() <= 120 else '—'
             top = (current_text, f"Температура: {format_temperature(temperature)}")
             effect = "waves"
             background = resolve_background(config, "time_temperature")
         else:
-            record = find_record(self._store.get("records_day", {}), config.record_category)
+            record = find_record(self.current_records(now=now), config.record_category)
             top = (config.record_label, format_record(record))
             effect = "pulse"
             background = resolve_background(config, "daily_record")
@@ -119,9 +143,13 @@ def find_record(records: Any, category: str) -> Any:
 
 
 def format_record(record: Any) -> str:
+    if record is None:
+        return '—'
     if isinstance(record, dict):
         name = record.get("name") or record.get("driver") or ""
         value = record.get("time", record.get("value", "—"))
+        if value is None or value == '—':
+            return '—'
         return f"{name}  {value}".strip()
     return str(record)
 
@@ -143,12 +171,13 @@ class ScreenDisplay:
     name = "screens"
     _font_cache: dict[int, Any] = {}
 
-    def __init__(self, store: DataStore, bus: EventBus, config_path: str | Path) -> None:
+    def __init__(self, store: DataStore, bus: EventBus, config_path: str | Path,
+                 *, timezone: str = 'local') -> None:
         self._store = store
         self._bus = bus
         self._configs = load_screen_configs(config_path)
         self._config_dir = Path(config_path).resolve().parent
-        self._planner = ContentPlanner(store)
+        self._planner = ContentPlanner(store, timezone=timezone)
         self._stop = ThreadEvent()
         self._ready = ThreadEvent()
         self._error: BaseException | None = None

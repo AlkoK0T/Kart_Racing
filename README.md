@@ -273,6 +273,7 @@ Pillow один раз декодирует и масштабирует GIF. Pyg
 | `ODTEMP_RECONNECT_INTERVAL` | `60` | период повторной инициализации, секунд |
 | `DISPLAY_ENABLED` | `True` | три Pygame-окна |
 | `DISPLAY_CONFIG` | `screens.yaml` | конфигурация окон |
+| `CENTRE_TIMEZONE` | `local` | зона центра: системная, UTC, +03:00 или IANA (нужен tzdata) |
 | `LOG_LEVEL` | `INFO` | уровень журнала (`DEBUG`, `INFO`, `WARNING`...) |
 | `LOG_FILE` | `karting.log` | файл журнала; пусто — только консоль |
 | `LOG_MAX_BYTES` | `5242880` | размер файла до ротации |
