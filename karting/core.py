@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from copy import deepcopy
 import logging
 from datetime import datetime, timezone
 from queue import Empty, Full, Queue
@@ -37,7 +38,7 @@ class _Subscription:
 
     def invoke(self, event):
         try:
-            self.handler(event)
+            self.handler(deepcopy(event))
         except Exception as exc:
             with self._lock:
                 self.failures += 1
@@ -176,6 +177,7 @@ class DataStore:
         self._lock = RLock()
 
     def set(self, key: str, value: Any, *, source: str = "unknown") -> DataValue:
+        value = deepcopy(value)
         with self._lock:
             self._revision += 1
             item = DataValue(value, datetime.now(timezone.utc), source, self._revision)
@@ -183,12 +185,12 @@ class DataStore:
         log.debug("store set key=%s source=%s revision=%d value=%r", key, source, item.revision, value)
         self._bus.publish(Event(f"data.{key}", item, source))
         self._bus.publish(Event("data.changed", {"key": key, "item": item}, source))
-        return item
+        return deepcopy(item)
 
     def get(self, key: str, default: Any = None) -> Any:
         with self._lock:
             item = self._values.get(key)
-            return default if item is None else item.value
+            return deepcopy(default if item is None else item.value)
 
     def mark_quality(self, key: str, quality: str, *, owner: str) -> bool:
         """Change quality only while this producer still owns the reading."""
@@ -208,7 +210,12 @@ class DataStore:
 
     def item(self, key: str) -> DataValue | None:
         with self._lock:
-            return self._values.get(key)
+            return deepcopy(self._values.get(key))
+
+    def snapshot_with_revision(self) -> tuple[dict[str, DataValue], int]:
+        """One atomic, detached snapshot of values and metadata."""
+        with self._lock:
+            return deepcopy(self._values), self._revision
 
     def remove(self, key: str, *, source: str = "system") -> None:
         with self._lock:
@@ -218,8 +225,8 @@ class DataStore:
             self._bus.publish(Event("data.removed", key, source))
 
     def snapshot(self) -> dict[str, Any]:
-        with self._lock:
-            return {key: item.value for key, item in self._values.items()}
+        values, _ = self.snapshot_with_revision()
+        return {key: item.value for key, item in values.items()}
 
 
 class Module(Protocol):
