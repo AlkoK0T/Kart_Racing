@@ -77,11 +77,11 @@ def run_server(runtime, app):
 def main():
     try:
         config = Config.from_env()
+        configure_logging(config.LOG_LEVEL, config.LOG_FILE, config.LOG_MAX_BYTES, config.LOG_BACKUP_COUNT)
         runtime, app = create_application(config)
     except (ValueError, OSError) as exc:
         print(f'Configuration error: {exc}', file=sys.stderr)
         return 2
-    configure_logging(config.LOG_LEVEL, config.LOG_FILE, config.LOG_MAX_BYTES, config.LOG_BACKUP_COUNT)
     log.info(
         "Kart Racing starting web=0.0.0.0:%d data=%s displays=%s tcp=%s odtemp=%s",
         config.PORT, config.DATA_FOLDER, config.DISPLAY_ENABLED,
