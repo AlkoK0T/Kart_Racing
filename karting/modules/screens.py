@@ -5,6 +5,7 @@ import logging
 import time
 from dataclasses import dataclass
 from contextlib import ExitStack
+from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 from threading import Event as ThreadEvent, Thread
@@ -15,6 +16,7 @@ import yaml
 from karting.core import DataStore, EventBus
 from karting.lifecycle import already_running, join_worker
 from karting.timezones import display_timezone
+from karting.render_cache import SurfaceCache, WindowSchedule, frame_signature
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +38,10 @@ class ScreenConfig:
     always_on_top: bool = True
     background_time_temperature: str = ""
     background_daily_record: str = "previous"
+
+    def __post_init__(self):
+        if type(self.fps) is not int or self.fps <= 0:
+            raise ValueError('screen fps must be a positive integer')
 
 
 @dataclass(slots=True)
@@ -170,7 +176,9 @@ class ScreenDisplay:
     """Three SDL2/Pygame windows driven by the shared data store."""
 
     name = "screens"
-    _font_cache: dict[int, Any] = {}
+    _font_cache = OrderedDict()
+    _text_cache = SurfaceCache()
+    _bottom_cache = SurfaceCache(max_entries=32, max_bytes=4 * 1024 * 1024)
 
     def __init__(self, store: DataStore, bus: EventBus, config_path: str | Path,
                  *, timezone: str = 'local') -> None:
@@ -186,6 +194,7 @@ class ScreenDisplay:
         self._thread: Thread | None = None
         self._cleanup_errors = []
         self.health = {'state': 'stopped', 'error': None}
+        self._dirty = ThreadEvent()
 
     def start(self) -> None:
         if already_running(self):
@@ -195,7 +204,8 @@ class ScreenDisplay:
         self._error = None
         self._cleanup_errors.clear()
         self.health = {'state': 'starting', 'error': None}
-        self._unsubscribe = self._bus.subscribe("data.changed", lambda event: None)
+        self._dirty.set()
+        self._unsubscribe = self._bus.subscribe('data.changed', lambda event: self._dirty.set())
         self._thread = Thread(target=self._thread_main, name=self.name, daemon=True)
         self._thread.start()
         if not self._ready.wait(timeout=5):
@@ -242,6 +252,8 @@ class ScreenDisplay:
             resources.callback(self._cleanup_resource, pygame.quit)
             pygame.init()
             resources.callback(self._font_cache.clear)
+            resources.callback(self._text_cache.clear)
+            resources.callback(self._bottom_cache.clear)
             self._run_initialized(pygame, resources)
         if self._cleanup_errors:
             raise RuntimeError('screen resource cleanup failed: ' + '; '.join(self._cleanup_errors))
@@ -323,18 +335,32 @@ class ScreenDisplay:
 
         clock = pygame.time.Clock()
         target_fps = max(config.fps for config in self._configs)
+        schedule = WindowSchedule()
+        previous = {}
+        previous_content = {}
         try:
             while not self._stop.is_set():
                 for event in pygame.event.get():
                     if event.type in (pygame.QUIT, pygame.WINDOWCLOSE):
                         self._stop.set()
                 elapsed = time.monotonic() - started
+                if self._dirty.is_set():
+                    self._dirty.clear()
+                    previous.clear()
                 for config, _, renderer, surface, texture in displays:
+                    if not schedule.due(config.name, config.fps, elapsed):
+                        continue
                     frame = self._planner.frame(config, elapsed)
-                    log.debug("screen frame name=%s elapsed=%.3f content=%r", config.name, elapsed, frame)
+                    if previous_content.get(config.name) != frame:
+                        log.debug('screen content changed name=%s content=%r', config.name, frame)
+                        previous_content[config.name] = frame
                     background = gif_frame(
                         frame.background, config.width, config.height // 2, elapsed
                     )
+                    signature = frame_signature(frame, background)
+                    if signature is not None and previous.get(config.name) == signature:
+                        continue
+                    previous[config.name] = signature
                     self._draw(surface, config, frame, elapsed, background)
                     texture.update(surface)
                     renderer.clear()
@@ -364,20 +390,24 @@ class ScreenDisplay:
             pygame.draw.circle(surface, "#5a164e", (width // 2, half // 2), radius)
             pygame.draw.circle(surface, "#d02c79", (width // 2, half // 2), radius, 2)
 
-        surface.fill("#090909", pygame.Rect(0, half, width, height - half))
-        pygame.draw.line(surface, "#e8233c", (0, half), (width, half), 2)
+        bottom_key = width, height - half, frame.bottom_lines
+        bottom = ScreenDisplay._bottom_cache.get(bottom_key)
+        if bottom is None:
+            bottom = pygame.Surface((width, height - half), pygame.SRCALPHA, 32)
+            bottom.fill('#090909')
+            pygame.draw.line(bottom, '#e8233c', (0, 0), (width, 0), 2)
+            bottom_size = max(10, int(half * 0.22))
+            spacing = half / (len(frame.bottom_lines) + 1)
+            for index, line in enumerate(frame.bottom_lines, 1):
+                ScreenDisplay._draw_text(bottom, line, (width // 2, int(spacing * index)),
+                                         bottom_size, '#ffd33d', width - 12)
+            ScreenDisplay._bottom_cache.put(bottom_key, bottom)
+        surface.blit(bottom, (0, half))
         top_size = max(10, int(half * 0.23))
         for index, line in enumerate(frame.top_lines):
             ScreenDisplay._draw_text(
                 surface, line, (width // 2, int(half * (0.30 + index * 0.43))),
                 top_size, "white", width - 10,
-            )
-        bottom_size = max(10, int(half * 0.22))
-        spacing = half / (len(frame.bottom_lines) + 1)
-        for index, line in enumerate(frame.bottom_lines, 1):
-            ScreenDisplay._draw_text(
-                surface, line, (width // 2, int(half + spacing * index)),
-                bottom_size, "#ffd33d", width - 12,
             )
 
     @staticmethod
@@ -385,14 +415,23 @@ class ScreenDisplay:
                    color: str, max_width: int) -> None:
         import pygame
 
+        key = str(text), size, color, max_width
+        rendered = ScreenDisplay._text_cache.get(key)
+        if rendered is not None:
+            surface.blit(rendered, rendered.get_rect(center=center))
+            return
         font = ScreenDisplay._font_cache.get(size)
         if font is None:
             font = pygame.font.SysFont("Arial", size, bold=True)
             ScreenDisplay._font_cache[size] = font
+            if len(ScreenDisplay._font_cache) > 128:
+                ScreenDisplay._font_cache.popitem(last=False)
+        ScreenDisplay._font_cache.move_to_end(size)
         rendered = font.render(str(text), True, color)
         if rendered.get_width() > max_width:
             scale = max_width / rendered.get_width()
             rendered = pygame.transform.smoothscale(
                 rendered, (max_width, max(1, int(rendered.get_height() * scale)))
             )
+        ScreenDisplay._text_cache.put(key, rendered)
         surface.blit(rendered, rendered.get_rect(center=center))
