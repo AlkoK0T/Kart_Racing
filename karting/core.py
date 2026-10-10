@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import logging
 from datetime import datetime, timezone
-from threading import RLock
+from queue import Empty, Full, Queue
+from threading import Event as ThreadEvent, RLock, Thread, current_thread
 from typing import Any, Callable, Protocol
 
 log = logging.getLogger(__name__)
@@ -20,8 +21,85 @@ class Event:
 EventHandler = Callable[[Event], None]
 
 
+class _Subscription:
+    def __init__(self, topic, handler, queued, queue_size):
+        self.topic, self.handler = topic, handler
+        self._lock = RLock()
+        self._stop = ThreadEvent()
+        self.failures = self.dropped = self.delivered = 0
+        self.last_error = None
+        self.last_source = None
+        self._queue = Queue(queue_size) if queued else None
+        self._thread = None
+        if queued:
+            self._thread = Thread(target=self._run, name=f'event:{topic}', daemon=True)
+            self._thread.start()
+
+    def invoke(self, event):
+        try:
+            self.handler(event)
+        except Exception as exc:
+            with self._lock:
+                self.failures += 1
+                self.last_error = f'{type(exc).__name__}: {exc}'
+                self.last_source = event.source
+            log.exception('event handler failed topic=%s source=%s handler=%r',
+                          event.topic, event.source, self.handler)
+        else:
+            with self._lock:
+                self.delivered += 1
+
+    def dispatch(self, event):
+        if self._stop.is_set():
+            return
+        if self._queue is None:
+            self.invoke(event)
+            return
+        try:
+            self._queue.put_nowait(event)
+        except Full:
+            with self._lock:
+                self.dropped += 1
+                self.last_source = event.source
+            log.warning('event queue full topic=%s source=%s handler=%r; notification dropped',
+                        event.topic, event.source, self.handler)
+
+    def _run(self):
+        while not self._stop.is_set():
+            try:
+                event = self._queue.get(timeout=0.1)
+            except Empty:
+                continue
+            try:
+                if not self._stop.is_set():
+                    self.invoke(event)
+            finally:
+                self._queue.task_done()
+
+    def close(self):
+        self._stop.set()
+        if self._thread and self._thread is not current_thread():
+            self._thread.join(timeout=1)
+        if self._queue is not None:
+            while True:
+                try:
+                    self._queue.get_nowait()
+                    self._queue.task_done()
+                except Empty:
+                    break
+
+    def health(self):
+        with self._lock:
+            return {'topic': self.topic, 'handler': repr(self.handler),
+                    'status': 'degraded' if self.failures or self.dropped else 'ok',
+                    'failures': self.failures, 'dropped': self.dropped,
+                    'delivered': self.delivered, 'last_error': self.last_error,
+                    'last_source': self.last_source,
+                    'queued': self._queue is not None}
+
+
 class EventBus:
-    """Small synchronous event bus.
+    """Isolated notifications; queued=True moves expensive callbacks off publishers.
 
     Handlers are copied before dispatch, so handlers may safely subscribe while an
     event is being published. A slow handler only delays its publisher; expensive
@@ -29,39 +107,54 @@ class EventBus:
     """
 
     def __init__(self) -> None:
-        self._handlers: dict[str, list[EventHandler]] = {}
+        self._handlers: dict[str, list[_Subscription]] = {}
         self._lock = RLock()
 
-    def subscribe(self, topic: str, handler: EventHandler) -> Callable[[], None]:
+    def subscribe(self, topic: str, handler: EventHandler, *, queued: bool = False,
+                  queue_size: int = 64) -> Callable[[], None]:
+        if not callable(handler):
+            raise TypeError('handler must be callable')
+        if type(queue_size) is not int or queue_size < 1:
+            raise ValueError('queue_size must be a positive integer')
+        subscription = _Subscription(topic, handler, queued, queue_size)
         with self._lock:
-            self._handlers.setdefault(topic, []).append(handler)
+            self._handlers.setdefault(topic, []).append(subscription)
         log.debug("event subscription topic=%s handler=%r", topic, handler)
 
         def unsubscribe() -> None:
             with self._lock:
                 handlers = self._handlers.get(topic, [])
-                if handler in handlers:
-                    handlers.remove(handler)
+                if subscription in handlers:
+                    handlers.remove(subscription)
+            subscription.close()
             log.debug("event unsubscribe topic=%s handler=%r", topic, handler)
 
         return unsubscribe
+
+    def subscriber_health(self) -> list[dict[str, Any]]:
+        with self._lock:
+            subscriptions = [item for values in self._handlers.values() for item in values]
+        return [item.health() for item in subscriptions]
+
+    def close(self) -> None:
+        with self._lock:
+            subscriptions = [item for values in self._handlers.values() for item in values]
+            self._handlers.clear()
+        for item in subscriptions:
+            item.close()
 
     def publish(self, event: Event) -> None:
         with self._lock:
             handlers = [
                 *self._handlers.get(event.topic, ()),
-                *self._handlers.get("*", ()),
+                *(self._handlers.get("*", ()) if event.topic != '*' else ()),
             ]
         log.debug(
             "event publish topic=%s source=%s payload=%r handlers=%d",
             event.topic, event.source, event.payload, len(handlers),
         )
         for handler in handlers:
-            try:
-                handler(event)
-            except Exception:
-                log.exception("event handler failed topic=%s handler=%r", event.topic, handler)
-                raise
+            handler.dispatch(event)
 
 
 @dataclass(frozen=True, slots=True)
