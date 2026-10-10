@@ -28,6 +28,7 @@ class FileSource:
         self._seen: dict[str, tuple[Path, int]] = {}
         self._stop = ThreadEvent()
         self._thread: Thread | None = None
+        self.health = {'state': 'stopped', 'root': str(self._root), 'error': None}
 
     def start(self) -> None:
         self._root.mkdir(parents=True, exist_ok=True)
@@ -38,23 +39,58 @@ class FileSource:
         log.info("file source started root=%s interval=%s", self._root, self._interval)
 
     def _run(self) -> None:
-        while not self._stop.wait(self._interval):
-            self.scan()
+        try:
+            while not self._stop.wait(self._interval):
+                self.scan()
+        except Exception as exc:
+            log.exception('file source worker failed')
+            self._status('failed', str(exc))
 
     def scan(self) -> None:
+        try:
+            success = self._scan()
+        except OSError as exc:
+            log.warning('file root unavailable path=%s error=%s', self._root, exc)
+            self._status('degraded', str(exc))
+        else:
+            self._status('running' if success else 'degraded')
+
+    def _status(self, state, error=None):
+        value = {'state': state, 'root': str(self._root), 'error': error}
+        if self.health != value:
+            self.health = value
+            log.info('file source state=%s root=%s error=%s', state, self._root, error)
+
+    def _scan(self) -> bool:
         log.debug("scanning data root=%s", self._root)
+        success = True
         candidates: dict[str, list[Path]] = {}
         root_files = list(self._root.glob("*.yaml")) + list(self._root.glob("*.yml"))
         if root_files:
             candidates["current_race"] = root_files
         for directory in (path for path in self._root.iterdir() if path.is_dir()):
-            files = list(directory.glob("*.yaml")) + list(directory.glob("*.yml"))
+            try:
+                files = list(directory.glob("*.yaml")) + list(directory.glob("*.yml"))
+            except OSError as exc:
+                log.warning('file category unavailable path=%s error=%s', directory, exc)
+                success = False
+                continue
             if files:
                 candidates[directory.name] = files
 
         for category, files in candidates.items():
-            newest = max(files, key=lambda path: path.stat().st_mtime_ns)
-            marker = (newest, newest.stat().st_mtime_ns)
+            available = []
+            for path in files:
+                try:
+                    info = path.stat()
+                    available.append((info.st_mtime_ns, str(path), path, info.st_size))
+                except OSError as exc:
+                    log.warning('file candidate unavailable path=%s error=%s', path, exc)
+                    success = False
+            if not available:
+                continue
+            modified, _, newest, size = max(available)
+            marker = (newest, modified)
             if self._seen.get(category) == marker:
                 log.debug("file unchanged category=%s path=%s", category, newest)
                 continue
@@ -62,12 +98,17 @@ class FileSource:
                 limits = self._ingestor.registry.limits
                 with newest.open('rb') as stream:
                     value = parse_yaml(stream.read(limits.max_bytes + 1), limits)
+                after = newest.stat()
+                if after.st_mtime_ns != modified or after.st_size != size:
+                    raise OSError('file changed while reading; retry on next scan')
                 log.debug("file received category=%s path=%s value=%r", category, newest, value)
                 self._ingestor.ingest(category, value, source=f"file:{newest}", legacy=True, filename=newest.name)
                 self._seen[category] = marker
                 log.info("file category updated category=%s path=%s", category, newest)
             except (OSError, ValidationError) as exc:
                 log.warning("Cannot load %s: %s", newest, exc)
+                success = False
+        return success
 
     def stop(self) -> None:
         self._stop.set()
