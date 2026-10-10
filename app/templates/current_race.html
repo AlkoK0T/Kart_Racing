@@ -1,3 +1,4 @@
+    {% from "race_values.html" import race_time, race_position, race_delta_class %}
     {% if error_message %}
         <div class="error-message">
             {{ error_message }}
@@ -20,18 +21,16 @@
                 <!-- Данные -->
                 {% for kart in current_race.karts %}
                 <div class="grid-row {% if current_race.positions[kart] == 1 %}leader{% endif %}">
-                    <div class="cell">{{ current_race.positions[kart] }}</div>
+                    <div class="cell">{{ race_position(current_race.positions[kart]) }}</div>
                     <div class="cell">{{ kart }}</div>
-                    <div class="cell">{{ "%.3f"|format(current_race.best_times[kart]) }}</div>
-                    <div class="cell">{{ "%.3f"|format(current_race.last_laps[kart]) }}</div>
-                    <div class="cell">{{ "%.3f"|format(current_race.total_time[kart]) }}</div>
+                    <div class="cell">{{ race_time(current_race.best_times[kart]) }}</div>
+                    <div class="cell">{{ race_time(current_race.last_laps[kart]) }}</div>
+                    <div class="cell">{{ race_time(current_race.total_time[kart]) }}</div>
                     <div class="cell">{{ current_race.total_laps[kart] }}</div>
-                    <div class="cell {% if current_race.diff[kart] < 0 %}delta-positive
-                        {% elif current_race.diff[kart] > 0 %}delta-negative
-                        {% else %}delta-neutral{% endif %}">
-                        {{ "%+.3f"|format(current_race.diff[kart]) }}
+                    <div class="cell {{ race_delta_class(current_race.diff[kart]) }}">
+                        {{ race_time(current_race.diff[kart], signed=true) }}
                     </div>
-                    <div class="cell">{{ "%.3f"|format(current_race.time_deltas[kart]) }}</div>
+                    <div class="cell">{{ race_time(current_race.time_deltas[kart]) }}</div>
                 </div>
                 {% endfor %}
             </div>

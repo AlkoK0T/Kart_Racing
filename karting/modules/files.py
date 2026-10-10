@@ -81,20 +81,23 @@ def normalize_race(data: Any, filename: str = "") -> Any:
     """Add calculated fields used by the legacy web templates."""
     if not isinstance(data, dict) or not isinstance(data.get("laps"), dict):
         return data
-    laps = {kart: (times or [0]) for kart, times in data["laps"].items()}
-    best = {kart: min(times) for kart, times in laps.items()}
-    overall_best = min(best.values(), default=0)
-    positions = {kart: pos for pos, (kart, _) in enumerate(sorted(best.items(), key=lambda x: x[1]), 1)}
+    laps = {kart: list(times or []) for kart, times in data["laps"].items()}
+    best = {kart: min(times) if times else None for kart, times in laps.items()}
+    ranked = sorted((kart for kart in laps if best[kart] is not None), key=lambda kart: best[kart])
+    ranks = {kart: position for position, kart in enumerate(ranked, 1)}
+    overall_best = min((value for value in best.values() if value is not None), default=None)
+    # Keep unclassified participants visible, after all actual results.
+    karts = ranked + [kart for kart in laps if best[kart] is None]
     current = {
-        "karts": list(laps), "laps": laps, "best_times": best,
-        "avg_times": {kart: sum(times) / len(times) for kart, times in laps.items()},
-        "positions": positions,
-        "time_deltas": {kart: value - overall_best for kart, value in best.items()},
-        "last_laps": {kart: times[-1] for kart, times in laps.items()},
-        "total_time": {kart: sum(times) for kart, times in laps.items()},
+        "karts": karts, "laps": laps, "best_times": best,
+        "avg_times": {kart: sum(times) / len(times) if times else None for kart, times in laps.items()},
+        "positions": {kart: ranks.get(kart) for kart in laps},
+        "time_deltas": {kart: value - overall_best if value is not None else None for kart, value in best.items()},
+        "last_laps": {kart: times[-1] if times else None for kart, times in laps.items()},
+        "total_time": {kart: sum(times) if times else None for kart, times in laps.items()},
         "total_laps": {kart: len(times) for kart, times in laps.items()},
         "max_time": max((len(times) for times in laps.values()), default=0),
-        "diff": {kart: times[-1] - times[-2] if len(times) > 1 else 0 for kart, times in laps.items()},
+        "diff": {kart: times[-1] - times[-2] if len(times) > 1 else None for kart, times in laps.items()},
         "type": "current_race",
     }
     style = data.get("style")

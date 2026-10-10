@@ -1,0 +1,16 @@
+{% macro race_time(value, precision=3, signed=false) -%}
+    {%- if value is none -%}—
+    {%- else -%}{{ ("%+.*f" if signed else "%.*f") | format(precision, value) }}
+    {%- endif -%}
+{%- endmacro %}
+
+{% macro race_position(value) -%}
+    {{- value if value is not none else "—" -}}
+{%- endmacro %}
+
+{% macro race_delta_class(value) -%}
+    {%- if value is not none and value < 0 -%}delta-positive
+    {%- elif value is not none and value > 0 -%}delta-negative
+    {%- else -%}delta-neutral
+    {%- endif -%}
+{%- endmacro %}

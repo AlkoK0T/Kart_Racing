@@ -253,6 +253,7 @@
         <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     </head>
     <body>
+        {% from "race_values.html" import race_time, race_position, race_delta_class %}
         {% if error_message %}
             <div class="error-message">
                 {{ error_message }}
@@ -279,12 +280,9 @@
                             <tr>
                                 <td>{{ lap_num + 1 }}</td>
                                 {% for kart in current_race.karts %}
-                                    {% set lap_time = current_race.laps[kart][lap_num] | float if current_race.laps[kart][lap_num] %}
-                                    {% set best_time = current_race.best_times[kart] | float %}
-                                    <td class="{% if lap_time == best_time %}best-lap{% endif %}">
-                                        {% if lap_time %}
-                                            {{ "%.*f" | format(decimal_places, lap_time) }}
-                                        {% endif %}
+                                    {% set lap_time = current_race.laps[kart][lap_num] if lap_num < (current_race.laps[kart] | length) else none %}
+                                    <td class="{% if lap_time is not none and lap_time == current_race.best_times[kart] %}best-lap{% endif %}">
+                                        {{ race_time(lap_time, decimal_places) }}
                                     </td>
                                 {% endfor %}
                             </tr>
@@ -295,32 +293,20 @@
                             <tr class="delta-row">
                                 <td class="no_right_border">DIFF</td>
                                 {% for kart in current_race.karts %}
-                                    {% set last_lap_time = current_race.laps[kart][-1] | float if current_race.laps[kart][-1] %}
-                                    {% set prelast_lap_time = current_race.laps[kart][-2] | float if current_race.laps[kart][-2] %}
-                                    {% if last_lap_time and prelast_lap_time %}
-                                        {% set delta = last_lap_time - prelast_lap_time %}
-                                        {% if delta > 0 %}
-                                            <td class="delta-negative">+{{ "%.*f" | format(decimal_places, delta) }}</td>
-                                        {% elif delta < 0 %}
-                                            <td class="delta-positive">{{ "%.*f" | format(decimal_places, delta) }}</td>
-                                        {% else %}
-                                            <td class="delta-neutral">0.{{ "0" * decimal_places }}</td>
-                                        {% endif %}
-                                    {% else %}
-                                        <td>-</td>
-                                    {% endif %}
+                                    {% set delta = current_race.diff[kart] %}
+                                    <td class="{{ race_delta_class(delta) }}">{{ race_time(delta, decimal_places, signed=true) }}</td>
                                 {% endfor %}
                             </tr>
                             <tr class="highlight-row">
                                 <td class="no_right_border">BEST</td>
                                 {% for kart in current_race.karts %}
-                                    <td>{{ "%.*f" | format(decimal_places, current_race.best_times[kart]) }}</td>
+                                    <td>{{ race_time(current_race.best_times[kart], decimal_places) }}</td>
                                 {% endfor %}
                             </tr>
                             <tr class="avg-row">
                                 <td class="no_right_border">AVG</td>
                                 {% for kart in current_race.karts %}
-                                    <td>{{ "%.*f" | format(decimal_places, current_race.avg_times[kart]) }}</td>
+                                    <td>{{ race_time(current_race.avg_times[kart], decimal_places) }}</td>
                                 {% endfor %}
                             </tr>
                             
@@ -328,8 +314,8 @@
                             <tr class="position-row">
                                 <td class="position-header">BEST DIFF</td>
                                 {% for kart in current_race.karts %}
-                                    <td>{{ "%.*f" | format(decimal_places, current_race.time_deltas[kart] | float) }}<br>
-                                        {{ current_race.positions[kart] }}</td>
+                                    <td>{{ race_time(current_race.time_deltas[kart], decimal_places) }}<br>
+                                        {{ race_position(current_race.positions[kart]) }}</td>
                                 {% endfor %}
                             </tr>
                             <tr class="legend-row">

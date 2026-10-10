@@ -234,7 +234,7 @@
 <div class="content">
     {% for item in data.raw %}
         {% set current = data.raw[item] %}
-    <!--{{ item }} {{ current.headers }} -->
+    {# Optional sections are rendered below; no access to absent debug fields. #}
         {% include "sub_" ~ item ~".html" ignore missing %}
     {% endfor %}
 

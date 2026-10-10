@@ -206,6 +206,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    {% from "race_values.html" import race_time, race_position, race_delta_class %}
     {% if error_message %}
         <div class="error-message">
             {{ error_message }}
@@ -228,19 +229,16 @@
                 <tbody>
                     {% for kart in current_race.karts %}
                     <tr {% if current_race.positions[kart] == 1 %} style="background: var(--carbon-gray); font-weight: bold;" {% endif %}>
-                        <td>{{ current_race.positions[kart] }}</td>
+                        <td>{{ race_position(current_race.positions[kart]) }}</td>
                         <td>{{ kart }}</td>
-                        <td>{{ "%.3f"|format(current_race.best_times[kart]) }}</td>
-                        <td>{{ "%.3f"|format(current_race.last_laps[kart]) }}</td>
-                        <td>{{ "%.3f"|format(current_race.total_time[kart]) }}</td>
+                        <td>{{ race_time(current_race.best_times[kart]) }}</td>
+                        <td>{{ race_time(current_race.last_laps[kart]) }}</td>
+                        <td>{{ race_time(current_race.total_time[kart]) }}</td>
                         <td>{{ current_race.total_laps[kart] }}</td>
-                        <td class="
-                            {% if current_race.diff[kart] < 0 %}delta-positive
-                            {% elif current_race.diff[kart] > 0 %}delta-negative
-                            {% else %}delta-neutral{% endif %}">
-                            {{ "%+.3f"|format(current_race.diff[kart]) }}
+                        <td class="{{ race_delta_class(current_race.diff[kart]) }}">
+                            {{ race_time(current_race.diff[kart], signed=true) }}
                         </td>
-                        <td>{{ "%.3f"|format(current_race.time_deltas[kart]) }}</td>
+                        <td>{{ race_time(current_race.time_deltas[kart]) }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
