@@ -7,6 +7,7 @@ import logging
 from app import create_app
 from config import Config
 from karting import Runtime
+from karting.ingestion import DataIngestor
 from karting.logging_config import configure_logging
 from karting.modules import (
     ClockSource, FileSource, ODTempSource, ScreenDisplay, SerialSource, TcpJsonSource,
@@ -20,14 +21,15 @@ log = logging.getLogger(__name__)
 
 def build_runtime() -> Runtime:
     runtime = Runtime()
+    ingestion = DataIngestor(runtime.store)
 
     # Data acquisition modules. Comment/remove a line to exclude a module.
-    runtime.add(FileSource(runtime.store, Config.DATA_FOLDER, Config.FILE_POLL_INTERVAL))
+    runtime.add(FileSource(runtime.store, Config.DATA_FOLDER, Config.FILE_POLL_INTERVAL, ingestor=ingestion))
     runtime.add(ClockSource(runtime.store))
     if Config.TCP_ENABLED:
-        runtime.add(TcpJsonSource(runtime.store, Config.TCP_HOST, Config.TCP_PORT))
+        runtime.add(TcpJsonSource(runtime.store, Config.TCP_HOST, Config.TCP_PORT, ingestor=ingestion))
     if Config.SERIAL_PORT:
-        runtime.add(SerialSource(runtime.store, Config.SERIAL_PORT, Config.SERIAL_BAUDRATE))
+        runtime.add(SerialSource(runtime.store, Config.SERIAL_PORT, Config.SERIAL_BAUDRATE, ingestor=ingestion))
     if Config.ODTEMP_ENABLED:
         runtime.add(ODTempSource(
             runtime.store, Config.ODTEMP_PORT, Config.ODTEMP_VID, Config.ODTEMP_PID,

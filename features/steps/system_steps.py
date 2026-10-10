@@ -404,7 +404,7 @@ class _FakeSerial:
     def __init__(self, *args, **kwargs):
         self.closed = False
 
-    def readline(self):
+    def readline(self, size=-1):
         if self.lines:
             return self.lines.popleft()
         time.sleep(0.005)

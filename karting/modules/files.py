@@ -3,11 +3,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from threading import Event as ThreadEvent, Thread
-from typing import Any
-
-import yaml
-
 from karting.core import DataStore
+from karting.domain import ValidationError, normalize_race  # compatibility re-export
+from karting.ingestion import DataIngestor, parse_yaml
 
 log = logging.getLogger(__name__)
 
@@ -21,8 +19,10 @@ class FileSource:
 
     name = "files"
 
-    def __init__(self, store: DataStore, root: str | Path, interval: float = 1.0) -> None:
+    def __init__(self, store: DataStore, root: str | Path, interval: float = 1.0,
+                 *, ingestor: DataIngestor | None = None) -> None:
         self._store = store
+        self._ingestor = ingestor if ingestor is not None else DataIngestor(store)
         self._root = Path(root)
         self._interval = interval
         self._seen: dict[str, tuple[Path, int]] = {}
@@ -59,15 +59,14 @@ class FileSource:
                 log.debug("file unchanged category=%s path=%s", category, newest)
                 continue
             try:
-                with newest.open(encoding="utf-8", errors="ignore") as stream:
-                    value: Any = yaml.safe_load(stream)
-                if category == "current_race":
-                    value = normalize_race(value, newest.name)
+                limits = self._ingestor.registry.limits
+                with newest.open('rb') as stream:
+                    value = parse_yaml(stream.read(limits.max_bytes + 1), limits)
                 log.debug("file received category=%s path=%s value=%r", category, newest, value)
-                self._store.set(category, value, source=f"file:{newest}")
+                self._ingestor.ingest(category, value, source=f"file:{newest}", legacy=True, filename=newest.name)
                 self._seen[category] = marker
                 log.info("file category updated category=%s path=%s", category, newest)
-            except (OSError, yaml.YAMLError) as exc:
+            except (OSError, ValidationError) as exc:
                 log.warning("Cannot load %s: %s", newest, exc)
 
     def stop(self) -> None:
@@ -75,32 +74,3 @@ class FileSource:
         if self._thread:
             self._thread.join(timeout=self._interval + 1)
         log.info("file source stopped root=%s", self._root)
-
-
-def normalize_race(data: Any, filename: str = "") -> Any:
-    """Add calculated fields used by the legacy web templates."""
-    if not isinstance(data, dict) or not isinstance(data.get("laps"), dict):
-        return data
-    laps = {kart: list(times or []) for kart, times in data["laps"].items()}
-    best = {kart: min(times) if times else None for kart, times in laps.items()}
-    ranked = sorted((kart for kart in laps if best[kart] is not None), key=lambda kart: best[kart])
-    ranks = {kart: position for position, kart in enumerate(ranked, 1)}
-    overall_best = min((value for value in best.values() if value is not None), default=None)
-    # Keep unclassified participants visible, after all actual results.
-    karts = ranked + [kart for kart in laps if best[kart] is None]
-    current = {
-        "karts": karts, "laps": laps, "best_times": best,
-        "avg_times": {kart: sum(times) / len(times) if times else None for kart, times in laps.items()},
-        "positions": {kart: ranks.get(kart) for kart in laps},
-        "time_deltas": {kart: value - overall_best if value is not None else None for kart, value in best.items()},
-        "last_laps": {kart: times[-1] if times else None for kart, times in laps.items()},
-        "total_time": {kart: sum(times) if times else None for kart, times in laps.items()},
-        "total_laps": {kart: len(times) for kart, times in laps.items()},
-        "max_time": max((len(times) for times in laps.values()), default=0),
-        "diff": {kart: times[-1] - times[-2] if len(times) > 1 else None for kart, times in laps.items()},
-        "type": "current_race",
-    }
-    style = data.get("style")
-    if style not in ("laps", "race"):
-        style = "laps" if filename == "laps.yaml" else "race"
-    return {**data, "raw": data, "style": style, "current_race": current}
