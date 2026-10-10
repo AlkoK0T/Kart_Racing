@@ -12,6 +12,7 @@ from typing import Any
 import yaml
 
 from karting.core import DataStore, EventBus
+from karting.lifecycle import already_running, join_worker
 
 log = logging.getLogger(__name__)
 
@@ -155,6 +156,8 @@ class ScreenDisplay:
         self._thread: Thread | None = None
 
     def start(self) -> None:
+        if already_running(self):
+            return
         self._stop.clear()
         self._ready.clear()
         self._error = None
@@ -180,8 +183,7 @@ class ScreenDisplay:
         if self._unsubscribe:
             self._unsubscribe()
             self._unsubscribe = None
-        if self._thread:
-            self._thread.join(timeout=2)
+        join_worker(self)
         log.info("Pygame screen module stopped")
 
     def _thread_main(self) -> None:

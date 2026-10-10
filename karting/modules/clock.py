@@ -5,6 +5,7 @@ import logging
 from threading import Event as ThreadEvent, Thread
 
 from karting.core import DataStore
+from karting.lifecycle import already_running, join_worker
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class ClockSource:
         self._thread: Thread | None = None
 
     def start(self) -> None:
-        if self._thread and self._thread.is_alive():
+        if already_running(self):
             return
         self._stop.clear()
         self._thread = Thread(target=self._run, name=self.name, daemon=True)
@@ -35,6 +36,5 @@ class ClockSource:
 
     def stop(self) -> None:
         self._stop.set()
-        if self._thread:
-            self._thread.join(timeout=self._interval + 1)
+        join_worker(self)
         log.info("clock source stopped")

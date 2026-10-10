@@ -8,6 +8,7 @@ from threading import Event as ThreadEvent, Thread
 from typing import Any, Iterable
 
 from karting.core import DataStore
+from karting.lifecycle import already_running, join_worker
 
 log = logging.getLogger(__name__)
 _MEASUREMENT = re.compile(r"^~G\s*(-?\d+(?:[.,]\d+)?)(?:;(-?\d+(?:[.,]\d+)?))?$")
@@ -63,6 +64,8 @@ class ODTempSource:
         self._thread: Thread | None = None
 
     def start(self) -> None:
+        if already_running(self):
+            return
         try:
             import serial  # noqa: F401
             from serial.tools import list_ports  # noqa: F401
@@ -79,8 +82,7 @@ class ODTempSource:
 
     def stop(self) -> None:
         self._stop.set()
-        if self._thread:
-            self._thread.join(timeout=3)
+        join_worker(self)
         log.info("ODTEMP source stopped")
 
     def _run(self) -> None:

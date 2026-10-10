@@ -269,7 +269,7 @@ def step_failed(context):
 
 @then("первый модуль остановлен при откате")
 def step_rollback(context):
-    assert context.calls == ["start:first", "start:broken", "stop:first"]
+    assert context.calls == ["start:first", "start:broken", "stop:broken", "stop:first"]
 
 
 @given("создан временный каталог данных")

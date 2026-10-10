@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from threading import Event as ThreadEvent, Thread
 from karting.core import DataStore
+from karting.lifecycle import already_running, join_worker
 from karting.domain import ValidationError, normalize_race  # compatibility re-export
 from karting.ingestion import DataIngestor, parse_yaml
 
@@ -31,6 +32,8 @@ class FileSource:
         self.health = {'state': 'stopped', 'root': str(self._root), 'error': None}
 
     def start(self) -> None:
+        if already_running(self):
+            return
         self._root.mkdir(parents=True, exist_ok=True)
         self.scan()
         self._stop.clear()
@@ -112,6 +115,6 @@ class FileSource:
 
     def stop(self) -> None:
         self._stop.set()
-        if self._thread:
-            self._thread.join(timeout=self._interval + 1)
+        join_worker(self)
+        self._status('stopped')
         log.info("file source stopped root=%s", self._root)

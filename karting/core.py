@@ -273,29 +273,145 @@ class Runtime:
         self.bus = EventBus()
         self.store = DataStore(self.bus)
         self._modules: list[Module] = []
+        self._required: dict[str, bool] = {}
+        self._active: list[Module] = []
+        self._states: dict[str, dict] = {}
+        self._lifecycle_lock = RLock()
+        self._health_lock = RLock()
+        self._state = 'stopped'
+        self._supervisor_stop = ThreadEvent()
+        self._supervisor_thread = None
 
-    def add(self, module: Module) -> Module:
-        self._modules.append(module)
+    def add(self, module: Module, *, required: bool = True) -> Module:
+        with self._lifecycle_lock:
+            if self._active or self._state not in ('stopped', 'failed'):
+                raise RuntimeError('cannot register modules while runtime is active')
+            if module.name in self._required:
+                raise ValueError(f'duplicate module name: {module.name}')
+            self._modules.append(module)
+            self._required[module.name] = required
+            self._module_state(module, 'stopped')
         log.debug("runtime module registered name=%s class=%s", module.name, type(module).__name__)
         return module
 
-    def start(self) -> None:
-        started: list[Module] = []
+    def _module_state(self, module, state, error=None):
+        with self._health_lock:
+            self._states[module.name] = {'state': state, 'error': error,
+                                         'required': self._required[module.name]}
+
+    def health_snapshot(self):
+        with self._health_lock:
+            return {'state': self._state, 'modules': deepcopy(self._states)}
+
+    def close(self):
         try:
-            for module in self._modules:
-                log.info("starting module %s", module.name)
-                module.start()
-                started.append(module)
-                log.info("module %s started", module.name)
-        except Exception:
-            log.exception("runtime startup failed")
-            for module in reversed(started):
-                log.info("rolling back module %s", module.name)
+            self.stop()
+        finally:
+            self.bus.close()
+
+    def _check_workers(self):
+        changed = False
+        with self._health_lock:
+            for module in tuple(self._active):
+                state = self._states[module.name]['state']
+                if state not in ('running', 'degraded'):
+                    continue
+                thread = getattr(module, '_thread', None)
+                module_health = getattr(module, 'health', {})
+                if isinstance(module_health, dict) and module_health.get('state') == 'failed':
+                    error = module_health.get('error', 'worker failed')
+                elif thread is not None and not thread.is_alive():
+                    error = str(getattr(module, '_error', None) or 'worker terminated unexpectedly')
+                else:
+                    source_health = self.store.get('source.' + module.name, {})
+                    local_state = module_health.get('state') if isinstance(module_health, dict) else None
+                    if isinstance(source_health, dict):
+                        local_state = source_health.get('state', local_state)
+                    desired = 'degraded' if local_state in ('degraded', 'reconnecting', 'waiting_measurement', 'failed') else 'running'
+                    if desired != state:
+                        self._module_state(module, desired)
+                        changed = True
+                    continue
+                self._module_state(module, 'failed', error)
+                self._state = 'degraded'
+                log.error('module worker failed name=%s error=%s', module.name, error)
+                changed = True
+            if self._state in ('running', 'degraded'):
+                self._state = 'degraded' if any(item['state'] in ('failed', 'degraded') for item in self._states.values()) else 'running'
+        if changed:
+            self.bus.publish(Event('module.health', self.health_snapshot(), 'runtime'))
+
+    def _supervise(self):
+        while not self._supervisor_stop.wait(0.25):
+            self._check_workers()
+
+    def _cleanup(self, modules):
+        errors = []
+        for module in reversed(tuple(modules)):
+            self._module_state(module, 'stopping')
+            try:
                 module.stop()
-            raise
+                thread = getattr(module, '_thread', None)
+                if thread is not None and thread.is_alive():
+                    raise RuntimeError('worker remains alive after stop')
+            except Exception as exc:
+                log.exception('module cleanup failed name=%s', module.name)
+                self._module_state(module, 'failed', str(exc))
+                errors.append(f'{module.name}: {exc}')
+            else:
+                self._module_state(module, 'stopped')
+                if module in self._active:
+                    self._active.remove(module)
+        return errors
+
+    def start(self) -> None:
+        with self._lifecycle_lock:
+            if self._state in ('running', 'degraded'):
+                return
+            if self._active:
+                raise RuntimeError('cleanup failed modules before restarting')
+            self._state = 'starting'
+            optional_failed = False
+            try:
+                for module in self._modules:
+                    self._active.append(module)  # Includes resources from partial start.
+                    self._module_state(module, 'starting')
+                    try:
+                        log.info('starting module %s', module.name)
+                        module.start()
+                    except Exception as exc:
+                        self._module_state(module, 'failed', str(exc))
+                        if self._required[module.name]:
+                            raise
+                        log.exception('optional module start failed name=%s', module.name)
+                        self._cleanup([module])
+                        self._module_state(module, 'failed', str(exc))
+                        optional_failed = True
+                    else:
+                        self._module_state(module, 'running')
+                        log.info('module %s started', module.name)
+            except BaseException:
+                log.exception('runtime startup failed')
+                self._cleanup(self._active)
+                self._state = 'failed'
+                raise
+            self._state = 'degraded' if optional_failed else 'running'
+            self._supervisor_stop.clear()
+            self._supervisor_thread = Thread(target=self._supervise, name='runtime-supervisor', daemon=True)
+            self._supervisor_thread.start()
+            self._check_workers()
 
     def stop(self) -> None:
-        for module in reversed(self._modules):
-            log.info("stopping module %s", module.name)
-            module.stop()
-            log.info("module %s stopped", module.name)
+        with self._lifecycle_lock:
+            self._supervisor_stop.set()
+            if self._supervisor_thread:
+                self._supervisor_thread.join(timeout=2)
+                if self._supervisor_thread.is_alive():
+                    self._state = 'failed'
+                    raise RuntimeError('runtime supervisor did not stop')
+                self._supervisor_thread = None
+            self._state = 'stopping'
+            errors = self._cleanup(self._active)
+            self._state = 'failed' if errors else 'stopped'
+            if errors:
+                raise RuntimeError('module shutdown errors: ' + '; '.join(errors))

@@ -53,6 +53,8 @@ class TcpJsonSource:
         self._thread: Thread | None = None
 
     def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
         self._server = _Server(self._address, _Handler)
         self._server.store = self._store  # type: ignore[attr-defined]
         self._server.ingestor = self._ingestor  # type: ignore[attr-defined]
@@ -68,4 +70,8 @@ class TcpJsonSource:
         self._server.server_close()
         if self._thread:
             self._thread.join(timeout=2)
+            if self._thread.is_alive():
+                raise RuntimeError('TCP server worker did not stop')
+        self._thread = None
+        self._server = None
         log.info("TCP JSON server stopped")

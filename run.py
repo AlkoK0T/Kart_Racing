@@ -50,13 +50,26 @@ runtime = build_runtime()
 app = create_app(runtime)
 
 
+def run_server(runtime, app):
+    try:
+        runtime.start()
+        app.run(host='0.0.0.0', port=Config.PORT, debug=Config.DEBUG, use_reloader=False)
+    except BaseException:
+        try:
+            runtime.close()
+        except Exception:
+            log.exception('cleanup failed while handling application error')
+        raise
+    else:
+        runtime.close()
+
+
 if __name__ == "__main__":
     log.info(
         "Kart Racing starting web=0.0.0.0:%d data=%s displays=%s tcp=%s odtemp=%s",
         Config.PORT, Config.DATA_FOLDER, Config.DISPLAY_ENABLED,
         Config.TCP_ENABLED, Config.ODTEMP_ENABLED,
     )
-    runtime.start()
-    atexit.register(runtime.stop)
+    atexit.register(runtime.close)
     log.info("web application listening address=0.0.0.0:%d", Config.PORT)
-    app.run(host="0.0.0.0", port=Config.PORT, debug=Config.DEBUG, use_reloader=False)
+    run_server(runtime, app)

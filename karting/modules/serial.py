@@ -4,6 +4,7 @@ import logging
 from threading import Event as ThreadEvent, Thread
 
 from karting.core import DataStore
+from karting.lifecycle import already_running, join_worker
 from karting.domain import ValidationError
 from karting.ingestion import DataIngestor, parse_json, utf8_message
 
@@ -26,6 +27,8 @@ class SerialSource:
         self._serial = None
 
     def start(self) -> None:
+        if already_running(self):
+            return
         try:
             import serial
         except ImportError as exc:
@@ -80,8 +83,7 @@ class SerialSource:
 
     def stop(self) -> None:
         self._stop.set()
-        if self._thread:
-            self._thread.join(timeout=2)
         if self._serial:
             self._serial.close()
+        join_worker(self)
         log.info("serial source stopped port=%s", self._port)

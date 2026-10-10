@@ -107,7 +107,8 @@ def health():
                              'source': item.source, 'revision': item.revision}
     return jsonify({'sources': {key: item.value for key, item in items.items()
                                 if key.startswith('source.')},
-                    'readings': readings, 'subscribers': runtime.bus.subscriber_health()})
+                    'readings': readings, 'subscribers': runtime.bus.subscriber_health(),
+                    'runtime': runtime.health_snapshot() if hasattr(runtime, 'health_snapshot') else None})
 
 
 @web.route("/check-updates")
