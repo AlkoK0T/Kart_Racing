@@ -9,6 +9,7 @@ from typing import Any, Iterable
 
 from karting.core import DataStore
 from karting.lifecycle import already_running, join_worker
+from karting.ports import claim_port
 
 log = logging.getLogger(__name__)
 _MEASUREMENT = re.compile(r"^~G\s*(-?\d+(?:[.,]\d+)?)(?:;(-?\d+(?:[.,]\d+)?))?$")
@@ -128,7 +129,7 @@ class ODTempSource:
                 if not port:
                     raise OSError('ODTEMP device not found')
                 log.info("ODTEMP port selected port=%s", port)
-                with serial.Serial(
+                with claim_port(port, self), serial.Serial(
                     port, self._baudrate, timeout=0.25, write_timeout=1
                 ) as device:
                     device.reset_input_buffer()

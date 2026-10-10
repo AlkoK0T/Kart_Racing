@@ -12,6 +12,10 @@ class Config:
     TCP_PORT = int(os.getenv('TCP_PORT', 8765))
     SERIAL_PORT = os.getenv('SERIAL_PORT', '')
     SERIAL_BAUDRATE = int(os.getenv('SERIAL_BAUDRATE', 9600))
+    SERIAL_RECONNECT_INTERVAL = float(os.getenv('SERIAL_RECONNECT_INTERVAL', 60))
+    SERIAL_VID = int(os.environ['SERIAL_VID'], 16) if os.getenv('SERIAL_VID') else None
+    SERIAL_PID = int(os.environ['SERIAL_PID'], 16) if os.getenv('SERIAL_PID') else None
+    SERIAL_NUMBER = os.getenv('SERIAL_NUMBER', '')
     ODTEMP_ENABLED = os.getenv('ODTEMP_ENABLED', 'True').lower() == 'true'
     ODTEMP_PORT = os.getenv('ODTEMP_PORT', '')
     ODTEMP_SERIAL_NUMBER = os.getenv('ODTEMP_SERIAL_NUMBER', '')

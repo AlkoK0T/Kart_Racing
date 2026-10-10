@@ -260,6 +260,9 @@ Pillow один раз декодирует и масштабирует GIF. Pyg
 | `TCP_PORT` | `8765` | порт TCP-сервера |
 | `SERIAL_PORT` | пусто | COM-порт; пусто — выключен |
 | `SERIAL_BAUDRATE` | `9600` | скорость RS-232 |
+| `SERIAL_RECONNECT_INTERVAL` | `60` | повтор открытия/автодетекта RS-232, секунд |
+| `SERIAL_VID`, `SERIAL_PID` | пусто | hexadecimal USB ID для автодетекта вместо SERIAL_PORT |
+| `SERIAL_NUMBER` | пусто | серийный номер для выбора USB-Serial |
 | `ODTEMP_ENABLED` | `True` | автоопрос ODTEMP |
 | `ODTEMP_PORT` | пусто | ручной порт или автоматический поиск |
 | `ODTEMP_SERIAL_NUMBER` | пусто | серийный номер USB для выбора одного из нескольких ODTEMP |

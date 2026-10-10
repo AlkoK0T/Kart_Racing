@@ -28,8 +28,10 @@ def build_runtime() -> Runtime:
     runtime.add(ClockSource(runtime.store))
     if Config.TCP_ENABLED:
         runtime.add(TcpJsonSource(runtime.store, Config.TCP_HOST, Config.TCP_PORT, ingestor=ingestion))
-    if Config.SERIAL_PORT:
-        runtime.add(SerialSource(runtime.store, Config.SERIAL_PORT, Config.SERIAL_BAUDRATE, ingestor=ingestion))
+    if Config.SERIAL_PORT or Config.SERIAL_VID is not None:
+        runtime.add(SerialSource(runtime.store, Config.SERIAL_PORT, Config.SERIAL_BAUDRATE, ingestor=ingestion,
+                                 reconnect_interval=Config.SERIAL_RECONNECT_INTERVAL,
+                                 vid=Config.SERIAL_VID, pid=Config.SERIAL_PID, serial_number=Config.SERIAL_NUMBER))
     if Config.ODTEMP_ENABLED:
         runtime.add(ODTempSource(
             runtime.store, Config.ODTEMP_PORT, Config.ODTEMP_VID, Config.ODTEMP_PID,
