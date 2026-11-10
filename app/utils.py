@@ -38,6 +38,7 @@ def load_race_data(data_folder=Config.DATA_FOLDER):
 
             result = {
                     'raw': data,
+                    'race_info': data.get('race') if isinstance(data.get('race'), dict) else {},
                     'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     'style' : 'laps' if filename=='laps.yaml' else 'race'
             }

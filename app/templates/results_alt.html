@@ -18,6 +18,8 @@
             --positive-green: #33cc33;
             --negative-red: #ff3333;
             --neutral-gray: #888888;
+            --result-row-height: clamp(80px, 10vh, 112px);
+            --result-number-size: clamp(24px, min(4vw, 7vh), 76px);
         }
 
         body {
@@ -26,21 +28,18 @@
             padding: 0;
             background-color: var(--coal-black);
             color: var(--off-white);
-            height: 100vh;
-            width: 100vw;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
         }
 
         header {
             background: linear-gradient(to bottom, var(--pure-black), var(--coal-black));
             border-bottom: 4px solid var(--blood-red);
-            padding: 1vh 0;
+            padding: 20px 12px;
             text-align: center;
             position: relative;
             flex-shrink: 0;
-            height: 12vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -64,7 +63,7 @@
 
         header h1 {
             margin: 0;
-            font-size: 5vh;
+            font-size: clamp(32px, 5vw, 56px);
             font-weight: 700;
             letter-spacing: 3px;
             text-transform: uppercase;
@@ -73,9 +72,25 @@
             line-height: 1;
         }
 
+        .race-details {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px 28px;
+            margin-top: 16px;
+            font-size: clamp(16px, 2.4vw, 28px);
+            line-height: 1.3;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .race-details p {
+            margin: 0;
+            white-space: nowrap;
+        }
+
         .table-container {
             flex: 1;
-            padding: 1.5rem;
+            padding: 12px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -83,32 +98,186 @@
 
         .results-table {
             width: 100%;
-            height: 100%;
             border-collapse: collapse;
             background-color: var(--steel-gray);
             border: 3px solid var(--blood-red);
             box-shadow: 0 0 20px rgba(255, 50, 50, 0.4);
             table-layout: fixed;
-            font-size: 1.4rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .results-table .col-num,
+        .results-table .col-pos {
+            width: 7%;
+        }
+
+        .results-table .col-gap {
+            width: 14%;
+        }
+
+        .results-table .col-best {
+            width: 19%;
+        }
+
+        .results-table .best-lap {
+            background: rgba(0, 204, 68, 0.1);
+        }
+
+        .results-table .col-last {
+            width: 23%;
+        }
+
+        .results-table .col-avg {
+            width: 22%;
+        }
+
+        .results-table .col-laps {
+            width: 8%;
         }
 
         .results-table th {
             background: linear-gradient(to bottom, var(--pure-black), var(--carbon-gray));
             color: var(--off-white);
-            padding: 1rem;
+            height: 48px;
+            padding: 0 2px;
             text-align: center;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            font-size: clamp(12px, 1.8vw, 32px);
+            white-space: nowrap;
             border: 2px solid var(--smoke-gray);
         }
 
         .results-table td {
-            padding: 1rem;
+            box-sizing: border-box;
+            height: var(--result-row-height);
+            padding: 0 2px;
             text-align: center;
             border: 2px solid var(--smoke-gray);
-            font-weight: 600;
+            font-size: var(--result-number-size);
+            font-weight: 700;
+            line-height: 1;
+            white-space: nowrap;
             color: var(--off-white);
+        }
+
+        .results-table .kart-position {
+            color: #ffd54f;
+        }
+
+        .last-lap-value {
+            display: inline-flex;
+            align-items: baseline;
+            font-size: inherit;
+        }
+
+        .lap-diff {
+            font-size: calc(var(--result-number-size) * 0.41);
+            line-height: 1;
+        }
+
+        .race-row {
+            position: relative;
+        }
+
+        .race-row::after,
+        .lap-progress-head {
+            content: "";
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            height: 3px;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        .race-row::after {
+            right: 5px;
+            background-color: rgba(160, 160, 160, 0.28);
+            transform: scaleX(0);
+            transform-origin: left center;
+        }
+
+        .lap-progress-head {
+            width: 5px;
+            background-color: rgba(230, 230, 230, 0.95);
+            z-index: 1;
+        }
+
+        .race-row:last-child::after,
+        .race-row:last-child .lap-progress-head {
+            bottom: 1.5px;
+        }
+
+        .race-row.lap-progress-running::after,
+        .race-row.lap-progress-running .lap-progress-head {
+            opacity: 1;
+        }
+
+        .race-row.lap-progress-running::after {
+            animation: lap-progress var(--lap-duration) linear var(--lap-delay, 0s) infinite;
+        }
+
+        .race-row.lap-progress-running .lap-progress-head {
+            animation: lap-progress-head var(--lap-duration) linear var(--lap-delay, 0s) infinite;
+        }
+
+        @keyframes lap-progress {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+
+        @keyframes lap-progress-head {
+            from { left: 0; }
+            to { left: calc(100% - 5px); }
+        }
+
+        /* Вертикальный телевизор Full HD: 1080 × 1920. */
+        @media (orientation: portrait) and (min-width: 720px) {
+            :root {
+                --result-row-height: clamp(96px, 6.67vh, 128px);
+                --result-number-size: clamp(36px, 5.6vw, 66px);
+            }
+
+            .table-container {
+                padding: 16px;
+            }
+
+            .results-table .col-num,
+            .results-table .col-pos {
+                width: 6%;
+            }
+
+            .results-table .col-gap {
+                width: 16%;
+            }
+
+            .results-table .col-best,
+            .results-table .col-avg {
+                width: 19%;
+            }
+
+            .results-table .col-last {
+                width: 24%;
+            }
+
+            .results-table .col-laps {
+                width: 10%;
+            }
+
+            .results-table th {
+                height: 64px;
+                font-size: clamp(12px, 1.9vw, 22px);
+            }
+
+            .results-table .gap-value {
+                font-size: calc(var(--result-number-size) * 0.82);
+            }
+
+            .results-table .laps-value {
+                font-size: clamp(36px, 5.2vw, 56px);
+            }
+
         }
 
         .results-table tr:nth-child(odd) {
@@ -120,7 +289,7 @@
         }
 
         .results-table tr:hover {
-            background: rgba(255, 255, 255, 0.08);
+            background-color: rgba(255, 255, 255, 0.08);
         }
 
         /* Стили для дельты */
@@ -211,36 +380,55 @@
             {{ error_message }}
         </div>
     {% else %}
+        <header class="race-header">
+            <h1>Заезд № {{ race_info.get('number', '—') }}</h1>
+            <div class="race-details">
+                <p>Дата: <strong>{{ race_info.get('date', '—') }}</strong></p>
+                <p>Старт: <strong>{{ race_info.get('start_time', '—') }}</strong></p>
+                <p>Продолжительность: <strong>{{ race_info.get('duration_minutes', 10) }} мин</strong></p>
+            </div>
+        </header>
         <div class="table-container">
             <table class="results-table" id="results-table">
+                <colgroup>
+                    <col class="col-num">
+                    <col class="col-pos">
+                    <col class="col-gap">
+                    <col class="col-best">
+                    <col class="col-last">
+                    <col class="col-avg">
+                    <col class="col-laps">
+                </colgroup>
                 <thead>
                     <tr>
-                        <th>POS</th>
-                        <th>NUM</th>
-                        <th>BEST LAP</th>
-                        <th>LAST LAP</th>
-                        <th>TOTAL TIME</th>
-                        <th>LAPS</th>
-                        <th>DIFF</th>
-                        <th>GAP</th>
+                        <th scope="col">NUM</th>
+                        <th scope="col">POS</th>
+                        <th scope="col">GAP</th>
+                        <th scope="col" class="best-lap">BEST LAP</th>
+                        <th scope="col">LAST LAP</th>
+                        <th scope="col">AVG LAP</th>
+                        <th scope="col">LAPS</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for kart in current_race.karts %}
-                    <tr {% if current_race.positions[kart] == 1 %} style="background: var(--carbon-gray); font-weight: bold;" {% endif %}>
-                        <td>{{ current_race.positions[kart] }}</td>
-                        <td>{{ kart }}</td>
-                        <td>{{ "%.3f"|format(current_race.best_times[kart]) }}</td>
-                        <td>{{ "%.3f"|format(current_race.last_laps[kart]) }}</td>
-                        <td>{{ "%.3f"|format(current_race.total_time[kart]) }}</td>
-                        <td>{{ current_race.total_laps[kart] }}</td>
-                        <td class="
-                            {% if current_race.diff[kart] < 0 %}delta-positive
-                            {% elif current_race.diff[kart] > 0 %}delta-negative
-                            {% else %}delta-neutral{% endif %}">
-                            {{ "%+.3f"|format(current_race.diff[kart]) }}
+                    <tr class="race-row" data-kart="{{ kart }}"
+                        data-lap-time="{{ current_race.last_laps[kart] }}"
+                        data-lap-count="{{ current_race.total_laps[kart] }}">
+                        <td>{{ kart }}<span class="lap-progress-head" aria-hidden="true"></span></td>
+                        <td class="kart-position">{{ current_race.positions[kart] }}</td>
+                        <td class="gap-value">{{ "%.2f"|format(current_race.time_deltas[kart]) }}</td>
+                        <td class="best-lap">{{ "%.2f"|format(current_race.best_times[kart]) }}</td>
+                        <td>
+                            <span class="last-lap-value">
+                                <span>{{ "%.2f"|format(current_race.last_laps[kart]) }}</span><span class="lap-diff
+                                    {% if current_race.diff[kart] < 0 %}delta-positive
+                                    {% elif current_race.diff[kart] > 0 %}delta-negative
+                                    {% else %}delta-neutral{% endif %}">{{ "%+.2f"|format(current_race.diff[kart]) }}</span>
+                            </span>
                         </td>
-                        <td>{{ "%.3f"|format(current_race.time_deltas[kart]) }}</td>
+                        <td>{{ "%.2f"|format(current_race.avg_times[kart]) }}</td>
+                        <td class="laps-value">{{ current_race.total_laps[kart] }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -257,8 +445,54 @@
     
     <script>
         // Глобальные переменные
+        const updateInterval = {{ config.UPDATE_TIME | tojson }};
         let lastUpdateTime = "{{ last_updated }}";
         let currentSubView = "{{ current_subview }}";  // ← получаем от сервера как ЧИСЛО
+
+        function initializeLapProgress() {
+            const storageKey = 'karting-lap-progress';
+            const raceKey = JSON.stringify({{ race_info | tojson }});
+            const now = Date.now();
+            let previousRows = {};
+
+            try {
+                const saved = JSON.parse(sessionStorage.getItem(storageKey));
+                if (saved && saved.race === raceKey && saved.rows) {
+                    previousRows = saved.rows;
+                }
+            } catch {
+                // Анимация работает и при недоступном хранилище браузера.
+            }
+
+            const rows = Object.create(null);
+            document.querySelectorAll('#results-table .race-row').forEach(row => {
+                const kart = row.dataset.kart;
+                const lapTime = Number(row.dataset.lapTime);
+                const lapCount = Number(row.dataset.lapCount);
+                if (!Number.isFinite(lapTime) || lapTime <= 0 ||
+                    !Number.isFinite(lapCount) || lapCount <= 0) {
+                    return;
+                }
+
+                const previous = previousRows[kart];
+                const unchanged = previous && previous.lapTime === lapTime &&
+                    previous.lapCount === lapCount && Number.isFinite(previous.startedAt) &&
+                    previous.startedAt <= now;
+                const startedAt = unchanged ? previous.startedAt : now;
+                const elapsed = (now - startedAt) / 1000;
+
+                row.style.setProperty('--lap-duration', `${lapTime}s`);
+                row.style.setProperty('--lap-delay', `${-(elapsed % lapTime)}s`);
+                row.classList.add('lap-progress-running');
+                rows[kart] = { lapTime, lapCount, startedAt };
+            });
+
+            try {
+                sessionStorage.setItem(storageKey, JSON.stringify({ race: raceKey, rows }));
+            } catch {
+                // Недоступное хранилище не мешает отображению результатов.
+            }
+        }
 
         // === 1. Проверка обновлений ДАННЫХ ===
         function checkForUpdates() {
@@ -284,7 +518,7 @@
                         setTimeout(() => location.reload(), 800);
                     }
                     // Повторяем каждые 5 сек
-                    setTimeout(checkForUpdates, сurrent_race.UPD_TIME);
+                    setTimeout(checkForUpdates, updateInterval);
                 })
                 .catch(error => {
                     console.error('Ошибка /check-updates:', error);
@@ -315,7 +549,7 @@
                         setTimeout(() => location.reload(), 800);
                     }
                     // Опрашиваем чаще — каждые 2 сек
-                    setTimeout(checkForState, сurrent_race.UPD_TIME);
+                    setTimeout(checkForState, updateInterval);
                 })
                 .catch(error => {
                     console.error('Ошибка /state:', error);
@@ -326,6 +560,7 @@
         // === Инициализация ===
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Запущен опрос');
+            initializeLapProgress();
             checkForUpdates();
             checkForState();
 

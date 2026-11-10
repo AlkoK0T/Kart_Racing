@@ -347,6 +347,7 @@
             Обновлено: {{ last_updated }}
         </footer>
         <script>
+            const updateInterval = {{ config.UPDATE_TIME | tojson }};
             let currentSubView = "{{ current_subview }}";
 
             let lastUpdateTime = "{{ last_updated }}";
@@ -371,7 +372,7 @@
 
                             setTimeout(() => location.reload(), 800);
                         }
-                        setTimeout(checkForUpdates, сurrent_race.UPD_TIME);
+                        setTimeout(checkForUpdates, updateInterval);
                     })
                     .catch(err => {
                         console.warn('Ошибка /check-updates:', err);
@@ -396,7 +397,7 @@
                             document.body.style.animation = 'viewChangeFlash 1s';
                             setTimeout(() => location.reload(), 800);
                         }
-                        setTimeout(checkViewState, сurrent_race.UPD_TIME);
+                        setTimeout(checkViewState, updateInterval);
                     })
                     .catch(err => {
                         console.warn('Ошибка /state:', err);

@@ -20,9 +20,15 @@ def show_results():
 
     race_data = load_race_data(Config.DATA_FOLDER)  # Передаем папку явно
 
-    current_view = race_data.get('style') if not(isinstance(race_data, list)) else "base"
+    if race_data is None:
+        current_view = "laps"
+    elif isinstance(race_data, list):
+        current_view = "base"
+    else:
+        current_view = race_data.get('style')
     if current_view == "laps":
             return render_template('results.html' if current_subview != "style2" else 'results_alt.html',
+                                race_info=race_data.get('race_info', {}) if race_data else {},
                                 current_race=race_data.get('current_race') if race_data else None,
                                 best_laps=race_data.get('best_laps', []) if race_data else [],
                                 top_pilots=race_data.get('top_pilots', []) if race_data else [],
